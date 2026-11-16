@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Antakshari TV</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: #101820; color: #f4f4f4; overflow: hidden;
+    font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif; }
+  #stage { height: 100vh; width: 100vw; padding: 3.5vh 3.5vw; display: none; flex-direction: column; gap: 2vh; }
+  #stage.on { display: flex; }
+  #top { display: flex; align-items: center; justify-content: space-between; gap: 2vw; }
+  #clocks { display: flex; gap: 1.2vw; border: .4vh solid #f4d03f; border-radius: 3vh;
+    background: rgba(244,208,63,.08); padding: 1vh 1.2vw; }
+  .clock { font-size: 11vh; font-weight: 700; padding: .5vh 2vw; border-radius: 3vh; color: #d40000;
+    font-variant-numeric: tabular-nums; box-shadow: 0 .8vh 2.4vh rgba(0,0,0,.4); }
+  .yellow { background: #ffeb3b; } .blue { background: #add8e6; }
+  .expired { animation: flash .6s infinite; }
+  @keyframes flash { 50% { opacity: .3; } }
+  #chips { display: flex; flex-wrap: wrap; gap: 1vw; justify-content: flex-end; flex: 1; }
+  .chip { background: #1b2733; border-radius: 2vh; padding: 1.2vh 1.6vw; font-size: 4.2vh;
+    display: flex; gap: 1.2vw; align-items: baseline; }
+  .chip .val { font-weight: 800; color: #2ecc71; font-variant-numeric: tabular-nums; }
+  #media { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; }
+  #media video, #media img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 2vh; }
+  #eq { display: none; align-items: flex-end; gap: 1.2vw; height: 40vh; }
+  #eq i { width: 3vw; background: #f4d03f; border-radius: 1vh; height: 20%; animation: bounce 1s ease-in-out infinite; animation-play-state: paused; }
+  #eq.playing i { animation-play-state: running; }
+  #eq i:nth-child(2) { animation-delay: .15s; } #eq i:nth-child(3) { animation-delay: .3s; }
+  #eq i:nth-child(4) { animation-delay: .45s; } #eq i:nth-child(5) { animation-delay: .6s; }
+  @keyframes bounce { 0%,100% { height: 15%; } 50% { height: 100%; } }
+  #wordView { display: none; font-size: 9vh; font-weight: 800; opacity: .85; }
+  #idle { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2vh; }
+  #idle.off { display: none; }
+  #idle h1 { font-size: 12vh; margin: 0; } #idle p { font-size: 4vh; opacity: .6; margin: 0; }
+  .overlay { position: fixed; inset: 0; display: none; align-items: center; justify-content: center;
+    background: rgba(0,0,0,.82); padding: 4vh 4vw; z-index: 10; }
+  .overlay.open { display: flex; }
+  .box { background: #1b2733; border-radius: 3vh; padding: 6vh 6vw; width: 100%; max-height: 92vh;
+    display: flex; flex-direction: column; box-shadow: 0 1.2vh 4vh rgba(0,0,0,.6); }
+  .box h2 { margin: 0 0 2vh; font-size: 4.5vh; opacity: .85; }
+  .box .body { overflow: hidden; white-space: pre-wrap; line-height: 1.5; font-size: 4.6vh; text-align: left; }
+  #wordBox { align-items: center; text-align: center; max-width: 90vw; }
+  #wordText { font-size: 16vh; font-weight: 800; line-height: 1.15; word-break: break-word; }
+  #wordSub { margin-top: 3vh; font-size: 3vh; opacity: .6; }
+  #pointsBox { max-width: 60vw; align-items: center; gap: 3vh; }
+  .prow { text-align: center; } .pname { font-size: 5vh; font-weight: 700; } .pdelta { font-size: 9vh; font-weight: 800; margin-top: .6vh; }
+</style>
+</head>
+<body>
+<div id="idle"><h1>🎤 Antakshari</h1><p id="idleMsg">Waiting for the host to start the game…</p></div>
+
+<div id="stage">
+  <div id="top">
+    <div id="clocks">
+      <div id="cMain" class="clock yellow">0</div>
+      <div id="cBonus" class="clock blue">0</div>
+      <div id="cWord" class="clock yellow" style="display:none">02:00</div>
+      <div id="cTally" class="clock blue" style="display:none">0 pts</div>
+    </div>
+    <div id="chips"></div>
+  </div>
+  <div id="media">
+    <video id="vid" playsinline style="display:none"></video>
+    <img id="img" alt="" style="display:none">
+    <div id="eq"><i></i><i></i><i></i><i></i><i></i></div>
+    <div id="wordView">🔤 Word Round</div>
+  </div>
+</div>
+
+<div class="overlay" id="oLyrics"><div class="box"><h2 id="lyTitle">Lyrics</h2><div class="body" id="lyBody"></div></div></div>
+<div class="overlay" id="oAnswer"><div class="box"><h2 id="anTitle">Answer</h2><div class="body" id="anBody"></div></div></div>
+<div class="overlay" id="oWord"><div class="box" id="wordBox"><div id="wordText"></div><div id="wordSub"></div></div></div>
+<div class="overlay" id="oPoints"><div class="box" id="pointsBox"><h2>Points</h2><div id="pList"></div></div></div>
+
+<audio id="aud"></audio>
+<script src="https://www.gstatic.com/cast/sdk/libs/caf_receiver/v3/cast_receiver_framework.js"></script>
+<script>
+(function () {
+  'use strict';
+  var NS = 'urn:x-cast:com.redcherry.antakshari';   // must match the iOS app + Cast console
+  var $ = function (id) { return document.getElementById(id); };
+  var vid = $('vid'), aud = $('aud'), img = $('img'), eq = $('eq');
+  var cur = { src: '', seq: -1, kind: null };
+
+  function setClock(el, c) {
+    el.textContent = c.text;
+    el.style.display = c.show ? 'block' : 'none';
+    var base = el.id === 'cMain' || el.id === 'cWord' ? 'clock yellow' : 'clock blue';
+    el.className = base + (c.cls && c.cls.indexOf('expired') > -1 ? ' expired' : '');
+  }
+  function overlay(id, open) { $(id).classList.toggle('open', !!open); }
+
+  function applyMedia(m) {
+    var kind = m.kind, el = kind === 'video' ? vid : (kind === 'audio' ? aud : null);
+    vid.style.display = kind === 'video' ? 'block' : 'none';
+    img.style.display = kind === 'image' ? 'block' : 'none';
+    eq.style.display = kind === 'audio' ? 'flex' : 'none';
+    eq.classList.toggle('playing', kind === 'audio' && !!m.playing);
+
+    if (!kind || !m.src) {
+      if (cur.src) { [vid, aud].forEach(function (e) { try { e.pause(); } catch (_) {} e.removeAttribute('src'); e.load(); }); img.removeAttribute('src'); }
+      cur = { src: '', seq: m.seq, kind: null };
+      return;
+    }
+    if (m.src !== cur.src || m.seq !== cur.seq || kind !== cur.kind) {
+      [vid, aud].forEach(function (e) { try { e.pause(); } catch (_) {} });
+      if (kind === 'image') img.src = m.src; else { el.src = m.src; el.load(); }
+      cur = { src: m.src, seq: m.seq, kind: kind };
+    }
+    if (el) {
+      if (m.playing && el.paused) { var p = el.play(); if (p && p.catch) p.catch(function () {}); }
+      if (!m.playing && !el.paused) el.pause();
+    }
+  }
+
+  function render(s) {
+    if (!s || s.v !== 1) return;
+    $('idle').classList.toggle('off', !!s.started);
+    $('stage').classList.toggle('on', !!s.started);
+    if (!s.started) return;
+
+    setClock($('cMain'), s.clocks.main); setClock($('cBonus'), s.clocks.bonus);
+    setClock($('cWord'), s.clocks.word); setClock($('cTally'), s.clocks.tally);
+
+    var chips = $('chips'); chips.textContent = '';
+    s.teams.forEach(function (t) {
+      var d = document.createElement('div'); d.className = 'chip';
+      var n = document.createElement('span'); n.textContent = t.name;
+      var v = document.createElement('span'); v.className = 'val'; v.textContent = t.score;
+      d.appendChild(n); d.appendChild(v); chips.appendChild(d);
+    });
+
+    var word = s.tab === 'word';
+    $('wordView').style.display = word ? 'block' : 'none';
+    if (word) applyMedia({ kind: null, src: '', playing: false, seq: s.media.seq }); else applyMedia(s.media);
+
+    var m = s.modal;
+    $('lyTitle').textContent = m.lyrics.title || 'Lyrics'; $('lyBody').textContent = m.lyrics.text; overlay('oLyrics', m.lyrics.open);
+    $('anTitle').textContent = m.answer.title || 'Answer'; $('anBody').textContent = m.answer.text; overlay('oAnswer', m.answer.open);
+    $('wordText').textContent = m.word.word; $('wordSub').textContent = m.word.sub; overlay('oWord', m.word.open);
+
+    var pl = $('pList'); pl.textContent = '';
+    m.points.rows.forEach(function (r) {
+      var row = document.createElement('div'); row.className = 'prow';
+      var a = document.createElement('div'); a.className = 'pname'; a.textContent = r.name;
+      var b = document.createElement('div'); b.className = 'pdelta'; b.textContent = r.delta; if (r.color) b.style.color = r.color;
+      row.appendChild(a); row.appendChild(b); pl.appendChild(row);
+    });
+    overlay('oPoints', m.points.open);
+  }
+
+  function parse(d) {
+    if (typeof d === 'string') { try { return JSON.parse(d); } catch (_) { return null; } }
+    return d;
+  }
+
+  // ---- Demo mode (open receiver/index.html?demo=1 in any browser to preview the layout) ----
+  if (/[?&]demo=1/.test(location.search)) {
+    var t = 30, tick = 0;
+    var base = function () { return { v: 1, started: true, tab: 'song',
+      clocks: { main: { text: String(t), cls: t <= 5 ? 'warning' : '', show: true }, bonus: { text: '5', cls: '', show: true },
+                word: { text: '02:00', cls: '', show: false }, tally: { text: '0 pts', cls: '', show: false } },
+      teams: [{ name: 'Team A', score: '12' }, { name: 'Team B', score: '9' }, { name: 'Team C', score: '15' }],
+      media: { kind: 'audio', src: '', playing: true, seq: 1, local: false },
+      modal: { lyrics: { open: false, text: '' }, answer: { open: false, text: '' }, word: { open: false, word: '', sub: '' }, points: { open: false, rows: [] } } }; };
+    setInterval(function () {
+      var s = base(); tick++; t = 30 - (tick % 31);
+      s.clocks.main.text = String(t);
+      s.media.kind = 'audio'; s.media.src = '';
+      if (tick % 20 > 12 && tick % 20 < 16) { s.modal.answer = { open: true, title: 'Answer', text: 'Sample answer text' }; }
+      if (tick % 20 >= 16) { s.modal.points = { open: true, rows: [{ name: 'Team A', delta: '+10 pts', color: '#2ecc71' }] }; }
+      render(s);
+    }, 1000);
+    $('idleMsg').textContent = 'Demo mode';
+    return;
+  }
+
+  // ---- Cast receiver ----
+  try {
+    var ctx = cast.framework.CastReceiverContext.getInstance();
+    var opts = new cast.framework.CastReceiverOptions();
+    opts.customNamespaces = {};
+    opts.customNamespaces[NS] = cast.framework.system.MessageType.JSON;
+    opts.disableIdleTimeout = true;      // keep the page alive between messages (verify in current docs)
+    ctx.addCustomMessageListener(NS, function (e) { render(parse(e.data)); });
+    var graceTimer = null;
+    ctx.addEventListener(cast.framework.system.EventType.SENDER_CONNECTED, function () { if (graceTimer) { clearTimeout(graceTimer); graceTimer = null; } });
+    ctx.addEventListener(cast.framework.system.EventType.SENDER_DISCONNECTED, function () {
+      if (ctx.getSenders().length === 0 && !graceTimer) graceTimer = setTimeout(function () { ctx.stop(); }, 60000);
+    });
+    ctx.start(opts);
+  } catch (err) {
+    $('idleMsg').textContent = 'Not running on a Cast device. Add ?demo=1 to preview.';
+  }
+})();
+</script>
+</body>
+</html>

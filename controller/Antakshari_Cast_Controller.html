@@ -1,0 +1,1986 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Antakshari (Offline)</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body {
+    font-family: -apple-system, Segoe UI, Roboto, sans-serif;
+    background: #101820;
+    color: #f4f4f4;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 30px 16px;
+    margin: 0;
+  }
+  .layout {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 24px;
+    justify-content: center;
+    align-items: flex-start;
+    width: 100%;
+  }
+  .media-col {
+    flex: 0 0 60%;
+    min-width: 480px;
+    position: sticky;
+    top: 20px;
+    order: 1;
+  }
+  .controls-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex: 0 0 35%;
+    min-width: 280px;
+    order: 2;
+  }
+  h1 {
+    margin: 0 0 20px;
+    letter-spacing: 1px;
+    min-height: 100px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    text-align: center;
+  }
+
+  #timerTopWrap {
+    position: fixed;
+    top: 20px;
+    left: 24px;
+    z-index: 20;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 14px;
+    border: 4px solid #f4d03f;
+    border-radius: 24px;
+    background: rgba(244, 208, 63, 0.08);
+    padding: 10px 14px;
+    box-shadow: 0 0 0 2px rgba(244, 208, 63, 0.25);
+  }
+  #timerTop {
+    background: #ffeb3b;
+    border: 1px solid #24313d;
+    border-radius: 24px;
+    padding: 20px 40px;
+    font-size: 92px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    color: #d40000;
+    transition: color 0.3s;
+  }
+  #timerTop.warning { color: #d40000; }
+  #timerTop.expired { color: #d40000; animation: flash 0.6s infinite; }
+
+  #timerBonus {
+    background: #add8e6;
+    border: 1px solid #24313d;
+    border-radius: 24px;
+    padding: 20px 40px;
+    font-size: 92px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    color: #d40000;
+    transition: color 0.3s;
+  }
+  #timerBonus.running { color: #d40000; }
+  #timerBonus.expired { color: #d40000; animation: flash 0.6s infinite; }
+
+  .cornerClock {
+    border: 1px solid #24313d;
+    border-radius: 24px;
+    padding: 20px 40px;
+    font-size: 92px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    color: #d40000;
+    transition: color 0.3s;
+  }
+  .cornerClock.yellow { background: #ffeb3b; }
+  .cornerClock.blue { background: #add8e6; }
+  .cornerClock.warning { color: #d40000; }
+  .cornerClock.expired { color: #d40000; animation: flash 0.6s infinite; }
+
+  #gameWrap {
+    padding-top: 200px;
+    box-sizing: border-box;
+  }
+
+
+  #topScoreBar {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    width: 100%;
+    max-width: 100%;
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 24px;
+    justify-content: center;
+    background: #0c141c;
+    border: 1px solid #24313d;
+    border-radius: 24px;
+    padding: 30px 36px;
+    margin-bottom: 30px;
+    box-sizing: border-box;
+  }
+  #topScoreBar .chip {
+    flex: 1 1 0;
+    justify-content: center;
+    background: #1b2733;
+    border-radius: 40px;
+    padding: 18px 42px;
+    font-size: 30px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    white-space: nowrap;
+  }
+  #topScoreBar .chip .val { font-weight: 700; color: #3498db; font-size: 34px; }
+
+  .card {
+    background: #1b2733;
+    border-radius: 16px;
+    padding: 24px 28px;
+    width: 100%;
+    max-width: 440px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    text-align: center;
+    margin-bottom: 18px;
+    box-sizing: border-box;
+  }
+  .card h2 { margin: 0 0 14px; font-size: 15px; opacity: 0.8; text-transform: uppercase; letter-spacing: 1px; }
+  .card p.help { font-size: 13px; opacity: 0.65; text-align: left; line-height: 1.5; margin: 6px 0 14px; }
+  .card p.help code { background: #0c141c; padding: 1px 5px; border-radius: 4px; }
+
+  .scoreboard { display: flex; flex-wrap: wrap; gap: 12px; }
+  .team {
+    flex: 1 1 calc(50% - 12px);
+    min-width: 120px;
+    background: #14202b;
+    border-radius: 12px;
+    padding: 14px 10px;
+  }
+  .team .teamName {
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+  .score { font-size: 34px; font-weight: 700; margin: 6px 0; }
+  .score-inputs { display: flex; gap: 6px; }
+  .score-inputs .field { flex: 1; display: flex; flex-direction: column; align-items: center; }
+  .score-inputs label { font-size: 11px; opacity: 0.7; margin-bottom: 3px; text-align: center; }
+  .score-inputs input {
+    width: 100%;
+    padding: 8px 0;
+    border: none;
+    border-radius: 8px;
+    font-weight: 700;
+    text-align: center;
+    font-size: 15px;
+    box-sizing: border-box;
+  }
+  .score-inputs input.green { background: #2ecc71; color: #06210f; }
+  .score-inputs input.red { background: #e74c3c; color: #2b0806; }
+  #updateScoreBtn {
+    width: 100%;
+    margin-top: 16px;
+    padding: 12px;
+    border: none;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    background: #3498db;
+    color: #ffffff;
+  }
+
+  #undoScoreBtn {
+    width: 100%;
+    margin-top: 10px;
+    padding: 12px;
+    border: none;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    background: #7f8c8d;
+    color: #ffffff;
+  }
+  #undoScoreBtn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .historyList {
+    max-height: 220px;
+    overflow-y: auto;
+    text-align: left;
+    font-size: 13px;
+    margin-top: 8px;
+    padding-right: 4px;
+  }
+  .historyItem {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    background: #14202b;
+    margin-bottom: 6px;
+  }
+  .historyItem .histLabel { flex: 1; line-height: 1.4; }
+  .historyItem .histTime { opacity: 0.55; font-size: 11px; white-space: nowrap; padding-top: 2px; }
+  .historyItem.undone { opacity: 0.5; }
+  .historyItem.undone .histLabel { text-decoration: line-through; }
+  .undoneTag { text-decoration: none; opacity: 0.85; font-style: italic; font-size: 11px; }
+  .historyEmpty { opacity: 0.5; font-size: 13px; padding: 8px 0; text-align: center; }
+
+  select {
+    width: 100%;
+    padding: 10px;
+    margin: 8px 0 14px;
+    border-radius: 8px;
+    border: none;
+    font-size: 16px;
+    box-sizing: border-box;
+  }
+  .optionGroup {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 0 0 14px;
+  }
+  .optionGroup .optionBtn {
+    flex: 0 0 auto;
+    padding: 8px 14px;
+    border: none;
+    border-radius: 20px;
+    background: #ffeb3b;
+    color: #101820;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.15s, color 0.15s;
+  }
+  .optionGroup .optionBtn:hover:not(:disabled) { background: #fdd835; }
+  .optionGroup .optionBtn.active { background: #f9a825; color: #101820; }
+  .optionGroup .optionBtn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  textarea {
+    width: 100%;
+    min-height: 90px;
+    padding: 10px;
+    margin: 8px 0 14px;
+    border-radius: 8px;
+    border: none;
+    font-size: 14px;
+    box-sizing: border-box;
+    font-family: inherit;
+    resize: vertical;
+  }
+  label { font-size: 13px; opacity: 0.7; display: block; text-align: left; }
+  .row { display: flex; gap: 10px; }
+  .row button {
+    flex: 1;
+    padding: 10px;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    background: #34495e;
+    color: #f4f4f4;
+  }
+
+  #timer {
+    font-size: 52px;
+    font-weight: 700;
+    margin: 10px 0 6px;
+    font-variant-numeric: tabular-nums;
+    transition: color 0.3s;
+  }
+  #timer.warning { color: #f39c12; }
+  #timer.expired {
+    color: #ffeb3b;
+    border-radius: 10px;
+    animation: flashRedYellow 0.6s infinite;
+  }
+  @keyframes flash { 50% { opacity: 0.3; } }
+  @keyframes flashRedYellow {
+    0%, 100% { background-color: #e74c3c; color: #ffeb3b; }
+    50% { background-color: transparent; color: #e74c3c; }
+  }
+  #status { min-height: 20px; opacity: 0.8; font-size: 14px; margin-bottom: 10px; }
+
+  .tabNav { display: flex; gap: 12px; margin-bottom: 20px; width: 100%; max-width: 440px; }
+  .tabBtn {
+    flex: 1;
+    padding: 14px;
+    border: none;
+    border-radius: 10px;
+    font-weight: 700;
+    cursor: pointer;
+    background: #34495e;
+    color: #f4f4f4;
+    font-size: 15px;
+  }
+  .tabBtn.active { background: #3498db; color: #ffffff; }
+
+  .tickList {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 16px 0;
+    min-height: 36px;
+    justify-content: center;
+  }
+  .tick { color: #2ecc71; font-size: 30px; font-weight: 700; line-height: 1; }
+
+  #roundStatus { min-height: 20px; opacity: 0.8; font-size: 14px; margin-top: 8px; }
+
+  .buttons { display: flex; gap: 12px; margin-top: 10px; }
+  .buttons button {
+    flex: 1;
+    padding: 14px;
+    border: none;
+    border-radius: 10px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+  .buttons button:disabled { opacity: 0.4; cursor: not-allowed; }
+  #playBtn { background: #2ecc71; color: #06210f; }
+  #stopBtn { background: #e74c3c; color: #2b0806; }
+  audio { width: 100%; margin-top: 14px; }
+
+  .media-panel {
+    background: #1b2733;
+    border-radius: 16px;
+    padding: 20px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    min-height: 300px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .media-panel .placeholder {
+    opacity: 0.5;
+    font-size: 15px;
+    text-align: center;
+    padding: 60px 20px;
+  }
+  .media-panel video,
+  .media-panel img {
+    width: 100%;
+    max-height: 80vh;
+    border-radius: 10px;
+    display: block;
+  }
+  .media-panel .audio-visual {
+    width: 100%;
+    text-align: center;
+    padding: 40px 10px;
+  }
+  .media-panel .audio-visual .note {
+    font-size: 64px;
+    margin-bottom: 20px;
+  }
+  .media-panel audio { margin-top: 0; }
+
+  /* Setup screen */
+  #setupWrap {
+    width: 100%;
+    max-width: 700px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .fileBtn {
+    display: inline-block;
+    padding: 10px 16px;
+    border-radius: 8px;
+    background: #34495e;
+    color: #f4f4f4;
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 14px;
+    margin-bottom: 6px;
+  }
+  .fileBtn input { display: none; }
+  .statusLine {
+    font-size: 13px;
+    margin-top: 4px;
+    min-height: 18px;
+  }
+  .statusLine.ok { color: #2ecc71; }
+  .statusLine.warn { color: #f39c12; }
+  .statusLine.err { color: #e74c3c; }
+  #startGameBtn {
+    width: 100%;
+    max-width: 440px;
+    padding: 14px;
+    border: none;
+    border-radius: 10px;
+    font-size: 17px;
+    font-weight: 700;
+    cursor: pointer;
+    background: #2ecc71;
+    color: #06210f;
+    margin-top: 8px;
+  }
+  #startGameBtn:disabled { opacity: 0.4; cursor: not-allowed; background: #34495e; color: #f4f4f4; }
+  .backLink {
+    font-size: 13px;
+    opacity: 0.7;
+    cursor: pointer;
+    text-decoration: underline;
+    margin-top: 14px;
+  }
+  a.sampleLink { color: #3498db; font-size: 13px; }
+</style>
+</head>
+<body>
+
+<h1>🎤 Antakshari <span style="font-size:16px; opacity:0.6; margin-left:10px;">(C) Red Cherry Group 2026 </span></h1>
+
+<!-- ============ SETUP SCREEN ============ -->
+<div id="setupWrap">
+
+  <div class="card">
+    <h2>1. Song &amp; Word List (CSV)</h2>
+    <p class="help">
+      A single CSV file with columns: <code>Category</code>, <code>Subcategory</code> (optional),
+      <code>QuestionNumber</code>, <code>MP3Link</code>, <code>Title</code> (optional), <code>Seconds</code> (optional),
+      <code>LyricsLink</code> (optional), <code>Answer</code> (optional), <code>Words</code> (optional).
+      <code>MP3Link</code> should just be the <b>filename</b> of a media file (e.g. <code>song12.mp3</code>) that lives
+      in the folder you'll select in step 2 — audio, video, or image files all work.
+      <code>LyricsLink</code> can be a filename of a text file in that same folder (e.g. <code>song12.txt</code>) or a
+      direct URL — when present, a "📄 Lyrics" button appears during that song to show the lyrics in a popup.
+      <code>Answer</code> is plain text — when present, an "✅ Answer" button appears to reveal it in a popup.
+      <code>Words</code> is used for the Word Round — put one word per row in this column (any rows without a
+      value in <code>Category</code>/<code>QuestionNumber</code> are ignored for songs but their <code>Words</code>
+      value is still collected), so you can list as many words as you like even if you have fewer songs.
+      <br><a class="sampleLink" id="sampleCsvLink" href="#">Download a sample CSV template</a>
+    </p>
+    <label class="fileBtn">📄 Choose Song List CSV
+      <input type="file" id="csvInput" accept=".csv,text/csv">
+    </label>
+    <div class="statusLine" id="csvStatus"></div>
+  </div>
+
+  <div class="card">
+    <h2>2. Media Folder</h2>
+    <p class="help">
+      Select the folder on your computer that contains all your audio/video/image files
+      referenced in the <code>MP3Link</code> column above. Nothing is uploaded anywhere —
+      files are read directly from your device.
+    </p>
+    <label class="fileBtn">📁 Choose Media Folder
+      <input type="file" id="folderInput" webkitdirectory directory multiple>
+    </label>
+    <div class="statusLine" id="folderStatus"></div>
+  </div>
+
+  <div class="card">
+    <h2>3. Teams</h2>
+    <p class="help">Type one team name per line.</p>
+    <textarea id="teamsInput" placeholder="Team A&#10;Team B&#10;Team C"></textarea>
+    <div class="statusLine" id="teamsStatus"></div>
+  </div>
+
+  <button id="startGameBtn" disabled>Start Game</button>
+  <div class="statusLine err" id="startBlockedReason" style="margin-top:8px;"></div>
+</div>
+
+<!-- ============ GAME SCREEN (hidden until Start Game) ============ -->
+<div id="gameWrap" style="display:none; width:100%; display: none; flex-direction: column; align-items:center;">
+  <div id="timerTopWrap">
+    <div id="timerTop">0</div>
+    <div id="timerBonus">0</div>
+    <div id="timerWordTimer" class="cornerClock yellow" style="display:none;">02:00</div>
+    <div id="timerWordTally" class="cornerClock blue" style="display:none;">0 pts</div>
+  </div>
+  <div id="topScoreBar"></div>
+
+  <div class="tabNav">
+    <button class="tabBtn active" id="tabSongBtn">🎵 Song Round</button>
+    <button class="tabBtn" id="tabNewRoundBtn">🆕 Word Round</button>
+  </div>
+
+  <div class="layout" id="songRoundContent">
+    <div class="media-col">
+      <div class="media-panel" id="mediaPanel">
+        <div class="placeholder" id="mediaPlaceholder">Media will appear here once you hit Play</div>
+        <audio id="audioPlayer" controls style="display:none;"></audio>
+        <video id="videoPlayer" controls autoplay playsinline style="display:none;"></video>
+        <img id="imagePlayer" style="display:none;">
+      </div>
+    </div>
+
+    <div class="controls-col">
+
+      <div class="card">
+        <h2>Song</h2>
+        <label for="category">Category</label>
+        <select id="category"></select>
+
+        <label for="subcategory">Subcategory</label>
+        <select id="subcategory"></select>
+        <div class="optionGroup" id="subcategoryButtons"></div>
+
+        <label for="question">Question</label>
+        <select id="question"></select>
+
+        <div class="row">
+          <button id="randomBtn">🎲 Random Question</button>
+        </div>
+
+        <div id="timer">0</div>
+        <div id="status">Pick a category &amp; question, then Play</div>
+
+        <div class="buttons">
+          <button id="playBtn">▶ Play</button>
+          <button id="stopBtn" disabled>■ Stop</button>
+        </div>
+        <div class="buttons" style="margin-top:8px;">
+          <button id="lyricsBtn" disabled>📄 Lyrics</button>
+        </div>
+        <div class="buttons" style="margin-top:8px;">
+          <button id="answerBtn" disabled>✅ Answer</button>
+        </div>
+
+        <label for="timeTransferSelect" style="margin-top: 16px;">Give remaining time to</label>
+        <select id="timeTransferSelect"></select>
+        <button id="transferTimeBtn" style="width:100%; padding:12px; border:none; border-radius:10px; font-size:15px; font-weight:700; cursor:pointer; background:#f39c12; color:#2b1a02;">⏱ Add Remaining Time to Score</button>
+      </div>
+
+      <div class="card">
+        <h2>Scoreboard</h2>
+        <div class="scoreboard" id="scoreboard"></div>
+        <button id="updateScoreBtn">Update Score</button>
+        <button id="undoScoreBtn" disabled>↶ Undo Last Score Change</button>
+      </div>
+
+      <div class="card">
+        <h2>Score History</h2>
+        <div class="historyList" id="historyList">
+          <div class="historyEmpty">No score changes yet</div>
+        </div>
+      </div>
+
+      <div class="backLink" id="backToSetup">⚙ Back to setup (reloads page)</div>
+
+    </div>
+  </div>
+
+  <div id="newRoundContent" style="display:none; width:100%; flex-direction: column; align-items:center;">
+    <div class="card" style="max-width:440px;">
+      <h2>Word Round · 2:00 Timer</h2>
+      <div class="buttons">
+        <button id="roundStartBtn" style="background:#2ecc71; color:#06210f;">▶ Start</button>
+        <button id="roundResetBtn" style="background:#34495e; color:#f4f4f4;">⟲ Reset</button>
+      </div>
+      <div class="buttons" style="margin-top:8px;">
+        <button id="showWordBtn" style="width:100%; padding:14px; border:none; border-radius:10px; font-size:16px; font-weight:700; cursor:pointer; background:#9b59b6; color:#fff;">🔀 Show a Word</button>
+      </div>
+      <div id="wordsRemainingLine" class="statusLine" style="margin-top:8px;"></div>
+    </div>
+
+    <div class="card" style="max-width:440px;">
+      <h2>Correct Answers</h2>
+      <button id="correctBtn" style="width:100%; padding:16px; border:none; border-radius:10px; font-size:18px; font-weight:700; cursor:pointer; background:#2ecc71; color:#06210f;">✔ Correct (+3)</button>
+      <div class="tickList" id="tickList"></div>
+      <button id="resetTallyBtn" style="width:100%; margin-top:10px; padding:10px; border:none; border-radius:8px; font-weight:600; cursor:pointer; background:#34495e; color:#f4f4f4;">Reset Tally</button>
+    </div>
+
+    <div class="card" style="max-width:440px;">
+      <h2>Transfer to Team</h2>
+      <label for="roundTeamSelect">Add points to</label>
+      <select id="roundTeamSelect"></select>
+      <button id="transferRoundPointsBtn" style="width:100%; padding:12px; border:none; border-radius:10px; font-size:15px; font-weight:700; cursor:pointer; background:#f39c12; color:#2b1a02;">➕ Add Points to Team Score</button>
+      <div id="roundStatus"></div>
+    </div>
+  </div>
+</div>
+
+<div id="lyricsModalOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:100; align-items:center; justify-content:center; padding:20px; box-sizing:border-box;">
+  <div id="lyricsModalBox" style="background:#1b2733; border-radius:16px; padding:90px 105px; max-width:1950px; width:100%; max-height:96vh; display:flex; flex-direction:column; box-shadow:0 12px 40px rgba(0,0,0,0.6);">
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
+      <h2 style="margin:0; font-size:34px; letter-spacing:0.5px;" id="lyricsModalTitle">Lyrics</h2>
+      <button id="lyricsModalCloseBtn" style="background:#34495e; color:#f4f4f4; border:none; border-radius:8px; padding:15px 27px; font-size:26px; font-weight:700; cursor:pointer;">✕ Close</button>
+    </div>
+    <div id="lyricsModalContent" style="overflow-y:auto; white-space:pre-wrap; line-height:1.6; font-size:30px; text-align:left;"></div>
+  </div>
+</div>
+
+<div id="answerModalOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:100; align-items:center; justify-content:center; padding:20px; box-sizing:border-box;">
+  <div id="answerModalBox" style="background:#1b2733; border-radius:16px; padding:90px 105px; max-width:1950px; width:100%; max-height:96vh; display:flex; flex-direction:column; box-shadow:0 12px 40px rgba(0,0,0,0.6);">
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
+      <h2 style="margin:0; font-size:34px; letter-spacing:0.5px;" id="answerModalTitle">Answer</h2>
+      <button id="answerModalCloseBtn" style="background:#34495e; color:#f4f4f4; border:none; border-radius:8px; padding:15px 27px; font-size:26px; font-weight:700; cursor:pointer;">✕ Close</button>
+    </div>
+    <div id="answerModalContent" style="overflow-y:auto; white-space:pre-wrap; line-height:1.6; font-size:30px; text-align:left;"></div>
+  </div>
+</div>
+
+<div id="wordModalOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.8); z-index:100; align-items:center; justify-content:center; padding:20px; box-sizing:border-box;">
+  <div id="wordModalBox" style="background:#1b2733; border-radius:20px; padding:60px 70px; max-width:1200px; width:100%; max-height:90vh; display:flex; flex-direction:column; align-items:center; box-shadow:0 12px 40px rgba(0,0,0,0.6);">
+    <div style="display:flex; align-items:center; justify-content:space-between; width:100%; margin-bottom:24px;">
+      <h2 style="margin:0; font-size:28px; letter-spacing:0.5px; opacity:0.8;" id="wordModalTitle">Word</h2>
+      <button id="wordModalCloseBtn" style="background:#34495e; color:#f4f4f4; border:none; border-radius:8px; padding:15px 27px; font-size:22px; font-weight:700; cursor:pointer;">✕ Close</button>
+    </div>
+    <div id="wordModalContent" style="font-size:110px; font-weight:800; text-align:center; line-height:1.2; word-break:break-word;"></div>
+    <div id="wordModalSubtext" style="margin-top:22px; font-size:18px; opacity:0.65; text-align:center;"></div>
+  </div>
+</div>
+
+<div id="pointsModalOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.8); z-index:100; align-items:center; justify-content:center; padding:20px; box-sizing:border-box;">
+  <div id="pointsModalBox" style="background:#1b2733; border-radius:20px; padding:50px 60px; max-width:600px; width:100%; display:flex; flex-direction:column; align-items:center; box-shadow:0 12px 40px rgba(0,0,0,0.6);">
+    <div style="display:flex; align-items:center; justify-content:space-between; width:100%; margin-bottom:24px;">
+      <h2 style="margin:0; font-size:24px; letter-spacing:0.5px; opacity:0.8;">Points Transferred</h2>
+      <button id="pointsModalCloseBtn" style="background:#34495e; color:#f4f4f4; border:none; border-radius:8px; padding:12px 22px; font-size:18px; font-weight:700; cursor:pointer;">✕ Close</button>
+    </div>
+    <div id="pointsModalList" style="width:100%; display:flex; flex-direction:column; gap:22px;"></div>
+  </div>
+</div>
+
+<script>
+  // =========================================================
+  // STATE
+  // =========================================================
+  let timerInterval = null;
+  let seconds = 0;
+  let countdownTarget = 30;
+  let usedQuestions = {};
+  let teams = [];
+  let scoreHistory = [];   // {label, changes:[{idx, delta}], time: Date}
+  let songs = [];          // parsed CSV rows: {Category, Subcategory, QuestionNumber, MP3Link, Title, Seconds}
+  let fileMap = {};        // lowercase filename/path -> File
+  let allWords = [];       // full word list parsed from the Words CSV
+  let wordsRemaining = []; // shuffled pool of words not yet shown this cycle
+  const DEFAULT_SECONDS = 30;
+  let currentObjectUrl_ = null;
+  let currentLyricsRef_ = null;
+  let currentLyricsRaw_ = '';
+  let currentAnswer_ = '';
+
+  // =========================================================
+  // CSV PARSING (handles quoted fields / commas / embedded quotes)
+  // =========================================================
+  function parseCSV(text) {
+    const rows = [];
+    let row = [], field = '', inQuotes = false;
+    for (let i = 0; i < text.length; i++) {
+      const c = text[i];
+      if (inQuotes) {
+        if (c === '"') {
+          if (text[i + 1] === '"') { field += '"'; i++; }
+          else { inQuotes = false; }
+        } else field += c;
+      } else {
+        if (c === '"') inQuotes = true;
+        else if (c === ',') { row.push(field); field = ''; }
+        else if (c === '\n') { row.push(field); rows.push(row); row = []; field = ''; }
+        else if (c === '\r') { /* skip, \n handles line end */ }
+        else field += c;
+      }
+    }
+    if (field.length || row.length) { row.push(field); rows.push(row); }
+    return rows.filter(r => !(r.length === 1 && r[0].trim() === ''));
+  }
+
+  function normalizeHeader_(h) {
+    return String(h || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+  }
+
+  const HEADER_ALIASES = {
+    category: 'Category',
+    subcategory: 'Subcategory',
+    subcat: 'Subcategory',
+    questionnumber: 'QuestionNumber',
+    question: 'QuestionNumber',
+    qno: 'QuestionNumber',
+    mp3link: 'MP3Link',
+    filename: 'MP3Link',
+    file: 'MP3Link',
+    media: 'MP3Link',
+    title: 'Title',
+    seconds: 'Seconds',
+    time: 'Seconds',
+    lyricslink: 'LyricsLink',
+    lyrics: 'LyricsLink',
+    lyricsfile: 'LyricsLink',
+    answer: 'Answer',
+    words: 'Words',
+    word: 'Words'
+  };
+
+  // Parses the combined Song & Word list CSV. Returns { songs, words }.
+  // Song rows require Category + QuestionNumber; rows missing those are skipped
+  // for song purposes but their Words column (if any) is still collected, so a
+  // words-only CSV (no song columns at all) also works and just yields { songs: [], words: [...] }.
+  function parseSongsCSV(text) {
+    const rows = parseCSV(text);
+    if (rows.length < 1) throw new Error('CSV appears to have no data rows.');
+    const rawHeaders = rows.shift();
+    const headers = rawHeaders.map(h => HEADER_ALIASES[normalizeHeader_(h)] || null);
+    const hasSongColumns = headers.includes('Category') && headers.includes('QuestionNumber') && headers.includes('MP3Link');
+    const hasWordsColumn = headers.includes('Words');
+    if (!hasSongColumns && !hasWordsColumn) {
+      throw new Error('CSV must include at least Category, QuestionNumber, and MP3Link columns (or a Words column).');
+    }
+    const songsOut = [];
+    const wordsOut = [];
+    rows.forEach(r => {
+      if (r.every(cell => String(cell).trim() === '')) return;
+      const obj = { Category: '', Subcategory: '', QuestionNumber: '', MP3Link: '', Title: '', Seconds: '', LyricsLink: '', Answer: '', Words: '' };
+      headers.forEach((h, i) => { if (h) obj[h] = r[i] !== undefined ? r[i] : ''; });
+      const w = String(obj.Words || '').trim();
+      if (w) wordsOut.push(w);
+      if (String(obj.Category).trim() === '' || String(obj.QuestionNumber).trim() === '') return;
+      songsOut.push(obj);
+    });
+    if (!hasSongColumns && wordsOut.length === 0) {
+      throw new Error('No words found in the CSV.');
+    }
+    if (hasSongColumns && songsOut.length === 0 && wordsOut.length === 0) {
+      throw new Error('CSV appears to have no data rows.');
+    }
+    return { songs: songsOut, words: wordsOut };
+  }
+
+  function shuffleArray_(arr) {
+    const a = arr.slice();
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+
+  // =========================================================
+  // SAMPLE CSV DOWNLOAD
+  // =========================================================
+  document.getElementById('sampleCsvLink').addEventListener('click', e => {
+    e.preventDefault();
+    const sample = 'Category,Subcategory,QuestionNumber,MP3Link,Title,Seconds,LyricsLink,Answer,Words\n' +
+      'Bollywood,90s,1,bollywood90s_1.mp3,Mystery Song 1,30,bollywood90s_1.txt,Song Title 1,Dil\n' +
+      'Bollywood,90s,2,bollywood90s_2.mp3,Mystery Song 2,30,,Song Title 2,Paani\n' +
+      'Bollywood,2000s,1,bollywood2000s_1.mp3,Mystery Song 3,20,bollywood2000s_1.txt,Song Title 3,Hawa\n' +
+      'Regional,Punjabi,1,punjabi_1.mp3,Mystery Song 4,30,,Song Title 4,Pyaar\n' +
+      'Bonus,,1,bonus_video_1.mp4,Guess the Movie,45,,Movie Title,Yaad\n' +
+      ',,,,,,,,Sanam\n' +
+      ',,,,,,,,Aankhe\n';
+    const blob = new Blob([sample], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'antakshari_songs_words_sample.csv';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  });
+
+  // =========================================================
+  // STEP 1: Song list CSV
+  // =========================================================
+  let songsLoaded = false;
+  document.getElementById('csvInput').addEventListener('change', e => {
+    const file = e.target.files[0];
+    const statusEl = document.getElementById('csvStatus');
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const result = parseSongsCSV(reader.result);
+        songs = result.songs;
+        allWords = result.words;
+        wordsRemaining = shuffleArray_(allWords);
+        const cats = new Set(songs.map(s => String(s.Category).trim()));
+        songsLoaded = songs.length > 0;
+        let msg;
+        if (songs.length > 0) {
+          msg = '✔ Loaded ' + songs.length + ' songs across ' + cats.size + ' categor' + (cats.size === 1 ? 'y' : 'ies') + '.';
+          if (allWords.length > 0) msg += ' Also loaded ' + allWords.length + ' word' + (allWords.length === 1 ? '' : 's') + ' for the Word Round.';
+        } else {
+          msg = '✔ Loaded ' + allWords.length + ' word' + (allWords.length === 1 ? '' : 's') + ' for the Word Round. No song rows found — add Category/QuestionNumber/MP3Link columns to also enable the Song Round.';
+        }
+        statusEl.className = 'statusLine ok';
+        statusEl.textContent = msg;
+      } catch (err) {
+        songsLoaded = false;
+        songs = [];
+        allWords = [];
+        wordsRemaining = [];
+        statusEl.className = 'statusLine err';
+        statusEl.textContent = '✘ ' + err.message;
+      }
+      updateWordRoundLabels_();
+      refreshStartButton();
+    };
+    reader.onerror = () => {
+      statusEl.className = 'statusLine err';
+      statusEl.textContent = '✘ Could not read the file.';
+    };
+    reader.readAsText(file);
+  });
+
+  // =========================================================
+  // STEP 2: Media folder
+  // =========================================================
+  let folderLoaded = false;
+  document.getElementById('folderInput').addEventListener('change', e => {
+    const files = e.target.files;
+    const statusEl = document.getElementById('folderStatus');
+    if (!files || files.length === 0) return;
+    fileMap = {};
+    let count = 0;
+    for (const f of files) {
+      const path = (f.webkitRelativePath || f.name).toLowerCase();
+      fileMap[path] = f;
+      fileMap[f.name.toLowerCase()] = f; // also index by bare filename
+      count++;
+    }
+    folderLoaded = true;
+    statusEl.className = 'statusLine ok';
+    statusEl.textContent = '✔ Indexed ' + count + ' file' + (count === 1 ? '' : 's') + ' from the folder.';
+    refreshStartButton();
+  });
+
+  // =========================================================
+  // STEP 3: Teams
+  // =========================================================
+  document.getElementById('teamsInput').addEventListener('input', refreshStartButton);
+
+  function getTeamNamesFromInput_() {
+    return document.getElementById('teamsInput').value
+      .split('\n')
+      .map(s => s.trim())
+      .filter(Boolean);
+  }
+
+  // =========================================================
+  // Start button gating
+  // =========================================================
+  function refreshStartButton() {
+    const btn = document.getElementById('startGameBtn');
+    const reasonEl = document.getElementById('startBlockedReason');
+    const teamNames = getTeamNamesFromInput_();
+    const reasons = [];
+    if (!songsLoaded) reasons.push('load a song list CSV');
+    if (!folderLoaded) reasons.push('choose a media folder');
+    if (teamNames.length === 0) reasons.push('enter at least one team');
+    if (reasons.length) {
+      btn.disabled = true;
+      reasonEl.textContent = 'Still need to: ' + reasons.join(', ') + '.';
+    } else {
+      btn.disabled = false;
+      reasonEl.textContent = '';
+    }
+  }
+
+  document.getElementById('startGameBtn').addEventListener('click', () => {
+    teams = getTeamNamesFromInput_().map(name => ({ name, score: 0 }));
+    document.getElementById('setupWrap').style.display = 'none';
+    document.getElementById('gameWrap').style.display = 'flex';
+    initGame();
+    syncTimerWrapSpacing_();
+  });
+
+  function syncTimerWrapSpacing_() {
+    const wrap = document.getElementById('timerTopWrap');
+    const gameWrap = document.getElementById('gameWrap');
+    if (!wrap || !gameWrap) return;
+    const rect = wrap.getBoundingClientRect();
+    gameWrap.style.paddingTop = (rect.bottom + 0) + 'px';
+  }
+  window.addEventListener('resize', syncTimerWrapSpacing_);
+  window.addEventListener('load', syncTimerWrapSpacing_);
+
+
+  document.getElementById('backToSetup').addEventListener('click', () => {
+    if (confirm('Go back to setup? This reloads the page and clears the current game/scores.')) {
+      location.reload();
+    }
+  });
+
+  // =========================================================
+  // LOCAL "BACKEND" — replaces google.script.run calls
+  // =========================================================
+  function getCategoriesLocal() {
+    return [...new Set(songs.map(s => String(s.Category).trim()).filter(Boolean))].sort();
+  }
+  function getSubcategoriesLocal(category) {
+    return [...new Set(
+      songs.filter(s => String(s.Category).trim() === String(category).trim())
+           .map(s => String(s.Subcategory).trim())
+           .filter(Boolean)
+    )].sort(subcategoryCompare_);
+  }
+
+  // Ascending numeric order (e.g. 50s, 60s, ... 2000s) based on the leading
+  // number in each subcategory label. Labels with no leading number sort
+  // alphabetically after all numeric ones.
+  function subcategoryCompare_(a, b) {
+    const numA = parseInt(a, 10);
+    const numB = parseInt(b, 10);
+    const aHasNum = !isNaN(numA);
+    const bHasNum = !isNaN(numB);
+    if (aHasNum && bHasNum) return numA - numB;
+    if (aHasNum) return -1;
+    if (bHasNum) return 1;
+    return a.localeCompare(b);
+  }
+  function getQuestionsLocal(category, subcategory) {
+    return songs
+      .filter(s =>
+        String(s.Category).trim() === String(category).trim() &&
+        (!subcategory || String(s.Subcategory).trim() === String(subcategory).trim())
+      )
+      .map(s => s.QuestionNumber)
+      .sort((a, b) => Number(a) - Number(b));
+  }
+  function getRandomQuestionLocal(category, subcategory, usedList) {
+    const all = getQuestionsLocal(category, subcategory).map(String);
+    const used = (usedList || []).map(String);
+    let pool = all.filter(q => !used.includes(q));
+    let resetOccurred = false;
+    if (pool.length === 0) { pool = all; resetOccurred = used.length > 0; }
+    if (pool.length === 0) throw new Error('No questions found for ' + category + (subcategory ? ' / ' + subcategory : ''));
+    const pick = pool[Math.floor(Math.random() * pool.length)];
+    return { question: pick, resetOccurred };
+  }
+
+  function findLocalFile_(ref) {
+    if (!ref) return null;
+    const str = String(ref).trim();
+    if (/^https?:\/\//i.test(str)) return { type: 'url', value: str };
+    const normalized = str.replace(/\\/g, '/').toLowerCase();
+    if (fileMap[normalized]) return { type: 'file', file: fileMap[normalized] };
+    const basename = normalized.split('/').pop();
+    if (fileMap[basename]) return { type: 'file', file: fileMap[basename] };
+    // fall back: suffix match against any indexed path
+    const match = Object.keys(fileMap).find(k => k.endsWith('/' + basename));
+    if (match) return { type: 'file', file: fileMap[match] };
+    return null;
+  }
+
+  function getSongLocal(category, subcategory, questionNumber) {
+    const row = songs.find(s =>
+      String(s.Category).trim() === String(category).trim() &&
+      (!subcategory || String(s.Subcategory).trim() === String(subcategory).trim()) &&
+      String(s.QuestionNumber).trim() === String(questionNumber).trim()
+    );
+    const label = category + (subcategory ? ' / ' + subcategory : '') + ' Q' + questionNumber;
+    if (!row) throw new Error('No song found for ' + label);
+
+    const ref = findLocalFile_(row.MP3Link);
+    if (!ref) throw new Error('Could not find media file "' + row.MP3Link + '" in the selected folder for ' + label);
+
+    let secs = parseInt(row.Seconds, 10);
+    if (isNaN(secs) || secs <= 0) secs = DEFAULT_SECONDS;
+    const title = row.Title ? String(row.Title) : label;
+
+    const nameForType = ref.type === 'file' ? ref.file.name : ref.value;
+    let mediaType = 'audio';
+    if (/\.(mp4|mov|webm|m4v|avi|mkv)(\?|$)/i.test(nameForType)) mediaType = 'video';
+    else if (/\.(jpe?g|png|gif|webp|bmp|svg)(\?|$)/i.test(nameForType)) mediaType = 'image';
+
+    let streamUrl;
+    if (ref.type === 'file') {
+      streamUrl = URL.createObjectURL(ref.file);
+    } else {
+      streamUrl = ref.value; // direct URL fallback (requires internet)
+    }
+
+    let lyricsRef = null;
+    if (row.LyricsLink && String(row.LyricsLink).trim()) {
+      lyricsRef = findLocalFile_(row.LyricsLink);
+    }
+
+    return { mediaType, streamUrl, title, seconds: secs, lyricsRef, lyricsRaw: row.LyricsLink, answer: row.Answer || '' };
+  }
+
+  // =========================================================
+  // GAME INIT (mirrors the old google.script.run bootstrap calls)
+  // =========================================================
+  function initGame() {
+    populateTeams();
+    populateCategories(getCategoriesLocal());
+    updateWordRoundLabels_();
+  }
+
+  function populateTeams() {
+    scoreHistory = [];
+    renderScoreboard();
+    renderTopScoreBar();
+    renderTimeTransferSelect();
+    renderRoundTeamSelect();
+    renderHistory();
+    updateUndoBtnState_();
+  }
+
+  // =========================================================
+  // SCORE HISTORY + UNDO
+  // =========================================================
+  function recordHistory_(label, changes) {
+    const nonZero = (changes || []).filter(c => c.delta !== 0);
+    if (nonZero.length === 0) return;
+    scoreHistory.push({ label, changes: nonZero, time: new Date(), undone: false });
+    renderHistory();
+    updateUndoBtnState_();
+  }
+
+  function updateUndoBtnState_() {
+    const hasActive = scoreHistory.some(e => !e.undone);
+    document.getElementById('undoScoreBtn').disabled = !hasActive;
+  }
+
+  function formatTime_(d) {
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  }
+
+  function renderHistory() {
+    const list = document.getElementById('historyList');
+    list.innerHTML = '';
+    if (scoreHistory.length === 0) {
+      const empty = document.createElement('div');
+      empty.className = 'historyEmpty';
+      empty.textContent = 'No score changes yet';
+      list.appendChild(empty);
+      return;
+    }
+    for (let i = scoreHistory.length - 1; i >= 0; i--) {
+      const entry = scoreHistory[i];
+      const desc = entry.changes.map(c => {
+        const team = teams[c.idx];
+        const name = team ? team.name : ('Team ' + c.idx);
+        const sign = c.delta > 0 ? '+' : '';
+        return name + ' ' + sign + c.delta;
+      }).join(', ');
+      const item = document.createElement('div');
+      item.className = 'historyItem' + (entry.undone ? ' undone' : '');
+      item.innerHTML =
+        '<span class="histLabel"><b>' + entry.label + ':</b> ' + desc +
+          (entry.undone ? ' <span class="undoneTag">(undone)</span>' : '') + '</span>' +
+        '<span class="histTime">' + formatTime_(entry.time) + '</span>';
+      list.appendChild(item);
+    }
+  }
+
+  function undoLastScoreChange_() {
+    let entry = null;
+    for (let i = scoreHistory.length - 1; i >= 0; i--) {
+      if (!scoreHistory[i].undone) { entry = scoreHistory[i]; break; }
+    }
+    if (!entry) return;
+    entry.undone = true;
+    entry.changes.forEach(c => {
+      if (teams[c.idx]) {
+        teams[c.idx].score -= c.delta;
+        const scoreEl = document.getElementById('score-' + c.idx);
+        if (scoreEl) scoreEl.textContent = teams[c.idx].score;
+      }
+    });
+    renderTopScoreBar();
+    renderHistory();
+    updateUndoBtnState_();
+  }
+
+  document.getElementById('undoScoreBtn').addEventListener('click', undoLastScoreChange_);
+
+  // =========================================================
+  // NEW ROUND TAB
+  // =========================================================
+  const ROUND_SECONDS_DEFAULT = 120;
+  const POINTS_PER_CORRECT = 3;
+  let roundSeconds = ROUND_SECONDS_DEFAULT;
+  let roundInterval = null;
+  let roundCorrectCount = 0;
+
+  document.getElementById('tabSongBtn').addEventListener('click', () => switchRoundTab_('song'));
+  document.getElementById('tabNewRoundBtn').addEventListener('click', () => {
+    switchRoundTab_('round');
+  });
+  document.getElementById('showWordBtn').addEventListener('click', showNextWordPopup_);
+
+  function switchRoundTab_(which) {
+    const songEl = document.getElementById('songRoundContent');
+    const roundEl = document.getElementById('newRoundContent');
+    const songBtn = document.getElementById('tabSongBtn');
+    const roundBtn = document.getElementById('tabNewRoundBtn');
+    const timerTopEl = document.getElementById('timerTop');
+    const timerBonusEl = document.getElementById('timerBonus');
+    const wordTimerEl = document.getElementById('timerWordTimer');
+    const wordTallyEl = document.getElementById('timerWordTally');
+    if (which === 'round') {
+      songEl.style.display = 'none';
+      roundEl.style.display = 'flex';
+      songBtn.classList.remove('active');
+      roundBtn.classList.add('active');
+      if (timerTopEl) timerTopEl.style.display = 'none';
+      if (timerBonusEl) timerBonusEl.style.display = 'none';
+      if (wordTimerEl) wordTimerEl.style.display = 'block';
+      if (wordTallyEl) wordTallyEl.style.display = 'block';
+      renderRoundTeamSelect();
+      updateWordRoundLabels_();
+    } else {
+      songEl.style.display = 'flex';
+      roundEl.style.display = 'none';
+      roundBtn.classList.remove('active');
+      songBtn.classList.add('active');
+      if (timerTopEl) timerTopEl.style.display = 'block';
+      if (timerBonusEl) timerBonusEl.style.display = 'block';
+      if (wordTimerEl) wordTimerEl.style.display = 'none';
+      if (wordTallyEl) wordTallyEl.style.display = 'none';
+    }
+    syncTimerWrapSpacing_();
+  }
+
+  function updateWordRoundLabels_() {
+    const tabBtn = document.getElementById('tabNewRoundBtn');
+    const remainLine = document.getElementById('wordsRemainingLine');
+    if (allWords.length === 0) {
+      if (tabBtn) tabBtn.textContent = '🆕 Word Round';
+      if (remainLine) { remainLine.className = 'statusLine'; remainLine.textContent = 'No word list loaded — add one in Setup.'; }
+      return;
+    }
+    if (tabBtn) tabBtn.textContent = '🆕 Word Round (' + wordsRemaining.length + ')';
+    if (remainLine) { remainLine.className = 'statusLine ok'; remainLine.textContent = wordsRemaining.length + ' of ' + allWords.length + ' words left.'; }
+  }
+
+  function showNextWordPopup_() {
+    if (allWords.length === 0) {
+      openWordModal_('No word list loaded', 'Add a Word List CSV in Setup, then come back to this tab.');
+      return;
+    }
+    if (wordsRemaining.length === 0) {
+      openWordModal_('No more words left', 'All ' + allWords.length + ' word' + (allWords.length === 1 ? '' : 's') + ' have already been used and won\'t repeat. Load a new Word List CSV in Setup to continue.');
+      return;
+    }
+    const word = wordsRemaining.shift();
+    updateWordRoundLabels_();
+    openWordModal_(word, wordsRemaining.length + ' word' + (wordsRemaining.length === 1 ? '' : 's') + ' left after this one.');
+    startRoundTimer_();
+  }
+
+  function openWordModal_(word, subtext) {
+    const overlay = document.getElementById('wordModalOverlay');
+    const content = document.getElementById('wordModalContent');
+    const sub = document.getElementById('wordModalSubtext');
+    content.textContent = word;
+    sub.textContent = subtext || '';
+    overlay.style.display = 'flex';
+  }
+
+  function closeWordModal_() {
+    document.getElementById('wordModalOverlay').style.display = 'none';
+  }
+
+  document.getElementById('wordModalCloseBtn').addEventListener('click', closeWordModal_);
+  document.getElementById('wordModalOverlay').addEventListener('click', e => {
+    if (e.target.id === 'wordModalOverlay') closeWordModal_();
+  });
+
+  function renderRoundTeamSelect() {
+    const sel = document.getElementById('roundTeamSelect');
+    if (!sel) return;
+    sel.innerHTML = '';
+    teams.forEach((team, i) => {
+      const opt = document.createElement('option');
+      opt.value = i; opt.textContent = team.name;
+      sel.appendChild(opt);
+    });
+  }
+
+  document.getElementById('roundStartBtn').addEventListener('click', startRoundTimer_);
+  document.getElementById('roundResetBtn').addEventListener('click', resetRoundTimer_);
+
+  function startRoundTimer_() {
+    clearInterval(roundInterval);
+    const el = document.getElementById('timerWordTimer');
+    el.classList.remove('warning', 'expired');
+    if (roundSeconds <= 0) roundSeconds = ROUND_SECONDS_DEFAULT;
+    updateRoundTimerDisplay_(roundSeconds);
+    roundInterval = setInterval(() => {
+      roundSeconds--;
+      updateRoundTimerDisplay_(roundSeconds);
+      if (roundSeconds <= 10 && roundSeconds > 0) el.classList.add('warning');
+      if (roundSeconds <= 0) {
+        clearInterval(roundInterval);
+        roundInterval = null;
+        el.classList.add('expired');
+      }
+    }, 1000);
+  }
+
+  function resetRoundTimer_() {
+    clearInterval(roundInterval);
+    roundInterval = null;
+    roundSeconds = ROUND_SECONDS_DEFAULT;
+    const el = document.getElementById('timerWordTimer');
+    el.classList.remove('warning', 'expired');
+    updateRoundTimerDisplay_(roundSeconds);
+  }
+
+  function updateRoundTimerDisplay_(sec) {
+    const s = Math.max(sec, 0);
+    const m = String(Math.floor(s / 60)).padStart(2, '0');
+    const r = String(s % 60).padStart(2, '0');
+    document.getElementById('timerWordTimer').textContent = m + ':' + r;
+  }
+
+  document.getElementById('correctBtn').addEventListener('click', () => {
+    roundCorrectCount++;
+    const tick = document.createElement('span');
+    tick.className = 'tick';
+    tick.textContent = '✔';
+    document.getElementById('tickList').appendChild(tick);
+    updateTallyDisplay_();
+  });
+
+  document.getElementById('resetTallyBtn').addEventListener('click', () => {
+    roundCorrectCount = 0;
+    document.getElementById('tickList').innerHTML = '';
+    updateTallyDisplay_();
+    document.getElementById('roundStatus').textContent = '';
+  });
+
+  function updateTallyDisplay_() {
+    const points = roundCorrectCount * POINTS_PER_CORRECT;
+    document.getElementById('timerWordTally').textContent = points + ' pts';
+  }
+
+  document.getElementById('transferRoundPointsBtn').addEventListener('click', () => {
+    const idx = parseInt(document.getElementById('roundTeamSelect').value, 10);
+    if (isNaN(idx) || !teams[idx]) return;
+    const points = roundCorrectCount * POINTS_PER_CORRECT;
+    teams[idx].score += points;
+    document.getElementById('score-' + idx).textContent = teams[idx].score;
+    renderTopScoreBar();
+    document.getElementById('roundStatus').textContent = '+' + points + ' pts added to ' + teams[idx].name;
+    recordHistory_('Word round', [{ idx, delta: points }]);
+    openPointsModal_([{ name: teams[idx].name, delta: points }]);
+    roundCorrectCount = 0;
+    document.getElementById('tickList').innerHTML = '';
+    updateTallyDisplay_();
+  });
+
+  // entries: array of { name, delta } — shows one row per team whose score changed.
+  // Accepts the legacy (teamName, points) call signature too, for safety.
+  function openPointsModal_(entries, points) {
+    if (typeof entries === 'string') entries = [{ name: entries, delta: points }];
+    if (!Array.isArray(entries) || entries.length === 0) return;
+
+    const overlay = document.getElementById('pointsModalOverlay');
+    const listEl = document.getElementById('pointsModalList');
+    listEl.innerHTML = '';
+
+    entries.forEach(({ name, delta }) => {
+      const row = document.createElement('div');
+      row.style.textAlign = 'center';
+
+      const teamEl = document.createElement('div');
+      teamEl.style.cssText = 'font-size:30px; font-weight:700; text-align:center;';
+      teamEl.textContent = name;
+
+      const deltaEl = document.createElement('div');
+      deltaEl.style.cssText = 'margin-top:6px; font-size:52px; font-weight:800; text-align:center;';
+      const sign = delta > 0 ? '+' : (delta < 0 ? '' : '±');
+      deltaEl.textContent = sign + delta + ' pts';
+      deltaEl.style.color = delta > 0 ? '#2ecc71' : (delta < 0 ? '#e74c3c' : '#f4f4f4');
+
+      row.appendChild(teamEl);
+      row.appendChild(deltaEl);
+      listEl.appendChild(row);
+    });
+
+    overlay.style.display = 'flex';
+  }
+
+  function closePointsModal_() {
+    document.getElementById('pointsModalOverlay').style.display = 'none';
+  }
+
+  document.getElementById('pointsModalCloseBtn').addEventListener('click', closePointsModal_);
+  document.getElementById('pointsModalOverlay').addEventListener('click', e => {
+    if (e.target.id === 'pointsModalOverlay') closePointsModal_();
+  });
+
+  function renderTimeTransferSelect() {
+    const sel = document.getElementById('timeTransferSelect');
+    sel.innerHTML = '';
+    teams.forEach((team, i) => {
+      const opt = document.createElement('option');
+      opt.value = i; opt.textContent = team.name;
+      sel.appendChild(opt);
+    });
+  }
+
+  document.getElementById('transferTimeBtn').addEventListener('click', () => {
+    const idx = parseInt(document.getElementById('timeTransferSelect').value, 10);
+    if (isNaN(idx) || !teams[idx]) return;
+    const bonus = Math.max(0, seconds || 0);
+    teams[idx].score += bonus;
+    document.getElementById('score-' + idx).textContent = teams[idx].score;
+    renderTopScoreBar();
+    document.getElementById('status').textContent = '+' + bonus + 's added to ' + teams[idx].name;
+    recordHistory_('Time bonus', [{ idx, delta: bonus }]);
+    openPointsModal_([{ name: teams[idx].name, delta: bonus }]);
+  });
+
+  function renderTopScoreBar() {
+    const bar = document.getElementById('topScoreBar');
+    bar.innerHTML = '';
+    teams.forEach(team => {
+      const chip = document.createElement('div');
+      chip.className = 'chip';
+      chip.innerHTML = '<span>' + team.name + '</span><span class="val">' + team.score + '</span>';
+      bar.appendChild(chip);
+    });
+  }
+
+  function renderScoreboard() {
+    const board = document.getElementById('scoreboard');
+    board.innerHTML = '';
+    teams.forEach((team, i) => {
+      const div = document.createElement('div');
+      div.className = 'team';
+      div.innerHTML =
+        '<div class="teamName">' + team.name + '</div>' +
+        '<div class="score" id="score-' + i + '">' + team.score + '</div>' +
+        '<div class="score-inputs">' +
+          '<div class="field">' +
+            '<label>Green (+)</label>' +
+            '<input type="number" class="green" id="green-' + i + '" value="0" min="0">' +
+          '</div>' +
+          '<div class="field">' +
+            '<label>Red (-)</label>' +
+            '<input type="number" class="red" id="red-' + i + '" value="0" min="0">' +
+          '</div>' +
+        '</div>';
+      board.appendChild(div);
+    });
+  }
+
+  document.getElementById('updateScoreBtn').addEventListener('click', () => {
+    const changes = [];
+    teams.forEach((team, i) => {
+      const green = parseInt(document.getElementById('green-' + i).value, 10) || 0;
+      const red = parseInt(document.getElementById('red-' + i).value, 10) || 0;
+      const delta = green - red;
+      if (delta !== 0) {
+        team.score += delta;
+        document.getElementById('score-' + i).textContent = team.score;
+        changes.push({ idx: i, delta });
+      }
+      document.getElementById('green-' + i).value = 0;
+      document.getElementById('red-' + i).value = 0;
+    });
+    renderTopScoreBar();
+    recordHistory_('Manual update', changes);
+    if (changes.length > 0) {
+      openPointsModal_(changes.map(c => ({ name: teams[c.idx].name, delta: c.delta })));
+    }
+  });
+
+  // ---------- Song selection ----------
+  function usedKey_(category, subcategory) {
+    return category + '||' + (subcategory || '');
+  }
+
+  // Renders a row of buttons mirroring the options of the given <select>.
+  // Clicking a button sets the select's value, dispatches a 'change' event
+  // (so existing select-change listeners still fire), then re-renders itself
+  // to reflect the new active state.
+  function renderOptionButtons(containerId, selectId, afterSelect) {
+    const container = document.getElementById(containerId);
+    const sel = document.getElementById(selectId);
+    if (!container || !sel) return;
+    container.innerHTML = '';
+    Array.from(sel.options).forEach(opt => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'optionBtn' + (opt.value === sel.value ? ' active' : '');
+      btn.textContent = opt.textContent;
+      if (!opt.value) btn.disabled = true;
+      btn.addEventListener('click', () => {
+        if (sel.value !== opt.value) {
+          sel.value = opt.value;
+          sel.dispatchEvent(new Event('change'));
+        }
+        renderOptionButtons(containerId, selectId, afterSelect);
+        if (afterSelect) afterSelect();
+      });
+      container.appendChild(btn);
+    });
+  }
+
+  function populateCategories(categories) {
+    const sel = document.getElementById('category');
+    sel.innerHTML = '';
+    categories.forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c; opt.textContent = c + ' (' + getCategoryUnplayedCount(c) + ')';
+      sel.appendChild(opt);
+    });
+    if (categories.length) loadSubcategories(categories[0]);
+  }
+
+  function getCategoryUnplayedCount(category) {
+    const subs = getSubcategoriesLocal(category);
+    if (subs.length === 0) {
+      const key = usedKey_(category, '');
+      const all = getQuestionsLocal(category, '').map(String);
+      const played = (usedQuestions[key] || []).map(String);
+      return all.filter(q => !played.includes(q)).length;
+    }
+    let total = 0;
+    subs.forEach(sub => {
+      const key = usedKey_(category, sub);
+      const qs = getQuestionsLocal(category, sub).map(String);
+      const played = (usedQuestions[key] || []).map(String);
+      total += qs.filter(q => !played.includes(q)).length;
+    });
+    return total;
+  }
+
+  function refreshCategoryCounts() {
+    const sel = document.getElementById('category');
+    Array.from(sel.options).forEach(opt => {
+      opt.textContent = opt.value + ' (' + getCategoryUnplayedCount(opt.value) + ')';
+    });
+  }
+
+  document.getElementById('category').addEventListener('change', e => loadSubcategories(e.target.value));
+
+  function loadSubcategories(category) {
+    populateSubcategories(category, getSubcategoriesLocal(category));
+  }
+
+  function populateSubcategories(category, subs) {
+    const sel = document.getElementById('subcategory');
+    sel.innerHTML = '';
+    if (subs.length === 0) {
+      const opt = document.createElement('option');
+      opt.value = ''; opt.textContent = '(none)';
+      sel.appendChild(opt);
+      renderOptionButtons('subcategoryButtons', 'subcategory');
+      loadQuestions(category, '');
+      return;
+    }
+    subs.forEach(s => {
+      const opt = document.createElement('option');
+      opt.value = s; opt.textContent = s + ' (' + getSubcategoryUnplayedCount(category, s) + ')';
+      sel.appendChild(opt);
+    });
+    renderOptionButtons('subcategoryButtons', 'subcategory');
+    loadQuestions(category, subs[0]);
+  }
+
+  function getSubcategoryUnplayedCount(category, subcategory) {
+    const key = usedKey_(category, subcategory);
+    const qs = getQuestionsLocal(category, subcategory).map(String);
+    const played = (usedQuestions[key] || []).map(String);
+    return qs.filter(q => !played.includes(q)).length;
+  }
+
+  function refreshSubcategoryCounts() {
+    const category = document.getElementById('category').value;
+    const sel = document.getElementById('subcategory');
+    Array.from(sel.options).forEach(opt => {
+      if (!opt.value) return; // skip the '(none)' placeholder option
+      opt.textContent = opt.value + ' (' + getSubcategoryUnplayedCount(category, opt.value) + ')';
+    });
+    renderOptionButtons('subcategoryButtons', 'subcategory');
+  }
+
+  document.getElementById('subcategory').addEventListener('change', e => {
+    const category = document.getElementById('category').value;
+    loadQuestions(category, e.target.value);
+  });
+
+  function loadQuestions(category, subcategory) {
+    populateQuestions(category, subcategory, getQuestionsLocal(category, subcategory));
+  }
+
+  function populateQuestions(category, subcategory, questions) {
+    const key = usedKey_(category, subcategory);
+    const played = (usedQuestions[key] || []).map(String);
+    const remaining = questions.filter(q => !played.includes(String(q)));
+    const sel = document.getElementById('question');
+    sel.innerHTML = '';
+    remaining.forEach(q => {
+      const opt = document.createElement('option');
+      opt.value = q; opt.textContent = 'Q' + q;
+      sel.appendChild(opt);
+    });
+    if (remaining.length === 0) {
+      const opt = document.createElement('option');
+      opt.value = ''; opt.textContent = 'No songs left';
+      sel.appendChild(opt);
+    }
+  }
+
+  // ---------- Random question ----------
+  document.getElementById('randomBtn').addEventListener('click', () => {
+    const category = document.getElementById('category').value;
+    const subcategory = document.getElementById('subcategory').value;
+    const key = usedKey_(category, subcategory);
+    const used = usedQuestions[key] || [];
+    try {
+      const result = getRandomQuestionLocal(category, subcategory, used);
+      usedQuestions[key] = usedQuestions[key] || [];
+      if (result.resetOccurred) {
+        usedQuestions[key] = [];
+        document.getElementById('status').textContent = 'All questions used — reshuffled pool for ' + category + (subcategory ? ' / ' + subcategory : '');
+        refreshCategoryCounts();
+        refreshSubcategoryCounts();
+      }
+      loadQuestions(category, subcategory);
+      setTimeout(() => {
+        document.getElementById('question').value = result.question;
+      }, 0);
+    } catch (err) {
+      onError(err);
+    }
+  });
+
+  // ---------- Play / Stop ----------
+  document.getElementById('playBtn').addEventListener('click', playSong);
+  document.getElementById('stopBtn').addEventListener('click', stopEverything);
+
+  function playSong() {
+    const category = document.getElementById('category').value;
+    const subcategory = document.getElementById('subcategory').value;
+    const question = document.getElementById('question').value;
+    if (!question) {
+      document.getElementById('status').textContent = 'No songs left in this category';
+      return;
+    }
+    document.getElementById('status').textContent = 'Loading...';
+    document.getElementById('playBtn').disabled = true;
+    try {
+      const data = getSongLocal(category, subcategory, question);
+      onSongLoaded(category, subcategory, question, data);
+    } catch (err) {
+      onError(err);
+    }
+  }
+
+  function onSongLoaded(category, subcategory, question, data) {
+    showMedia(data);
+    document.getElementById('status').textContent = data.title;
+    document.getElementById('playBtn').disabled = false;
+    countdownTarget = data.seconds || 30;
+    startTimer();
+
+    currentLyricsRef_ = data.lyricsRef || null;
+    currentLyricsRaw_ = data.lyricsRaw || '';
+    const lyricsBtn = document.getElementById('lyricsBtn');
+    lyricsBtn.disabled = !currentLyricsRef_;
+
+    currentAnswer_ = data.answer || '';
+    const answerBtn = document.getElementById('answerBtn');
+    answerBtn.disabled = !String(currentAnswer_).trim();
+
+    const key = usedKey_(category, subcategory);
+    usedQuestions[key] = usedQuestions[key] || [];
+    if (!usedQuestions[key].includes(String(question))) {
+      usedQuestions[key].push(String(question));
+    }
+    loadQuestions(category, subcategory);
+    refreshCategoryCounts();
+    refreshSubcategoryCounts();
+  }
+
+  function showMedia(data) {
+    const placeholder = document.getElementById('mediaPlaceholder');
+    const audioEl = document.getElementById('audioPlayer');
+    const videoEl = document.getElementById('videoPlayer');
+    const imageEl = document.getElementById('imagePlayer');
+
+    placeholder.style.display = 'none';
+    audioEl.style.display = 'none';
+    videoEl.style.display = 'none';
+    imageEl.style.display = 'none';
+    audioEl.pause();
+    videoEl.pause();
+    revokeCurrentObjectUrl_();
+
+    if (data.mediaType === 'video') {
+      videoEl.muted = false;
+      videoEl.style.display = 'block';
+      videoEl.onerror = () => onMediaError_('video', data.streamUrl);
+      videoEl.src = data.streamUrl;
+      if (data.streamUrl.startsWith('blob:')) currentObjectUrl_ = data.streamUrl;
+      attemptPlay_(videoEl);
+    } else if (data.mediaType === 'image') {
+      imageEl.onerror = () => onMediaError_('image', data.streamUrl);
+      imageEl.src = data.streamUrl;
+      imageEl.style.display = 'block';
+      if (data.streamUrl.startsWith('blob:')) currentObjectUrl_ = data.streamUrl;
+    } else {
+      audioEl.onerror = () => onMediaError_('audio', data.streamUrl);
+      audioEl.src = data.streamUrl;
+      audioEl.style.display = 'block';
+      if (data.streamUrl.startsWith('blob:')) currentObjectUrl_ = data.streamUrl;
+      attemptPlay_(audioEl);
+    }
+  }
+
+  function revokeCurrentObjectUrl_() {
+    if (currentObjectUrl_) {
+      URL.revokeObjectURL(currentObjectUrl_);
+      currentObjectUrl_ = null;
+    }
+  }
+
+  function onMediaError_(kind, url) {
+    console.error(kind + ' failed to load:', url);
+    document.getElementById('status').textContent =
+      (kind.charAt(0).toUpperCase() + kind.slice(1)) + ' failed to load. Check the file exists in the selected folder and is a supported format.';
+  }
+
+  function attemptPlay_(mediaEl) {
+    const playPromise = mediaEl.play();
+    if (playPromise && playPromise.catch) {
+      playPromise.catch(() => {
+        mediaEl.muted = true;
+        mediaEl.play().then(() => {
+          setTimeout(() => { mediaEl.muted = false; }, 300);
+        }).catch(() => {
+          document.getElementById('status').textContent =
+            (document.getElementById('status').textContent || '') + ' (tap the player to start playback)';
+        });
+      });
+    }
+  }
+
+  function onError(err) {
+    console.error('Error:', err);
+    document.getElementById('status').textContent = 'Error: ' + err.message;
+    document.getElementById('playBtn').disabled = false;
+  }
+
+  // ---------- Lyrics popup ----------
+  document.getElementById('lyricsBtn').addEventListener('click', openLyricsModal);
+  document.getElementById('lyricsModalCloseBtn').addEventListener('click', closeLyricsModal);
+  document.getElementById('lyricsModalOverlay').addEventListener('click', e => {
+    if (e.target.id === 'lyricsModalOverlay') closeLyricsModal();
+  });
+
+  function openLyricsModal() {
+    if (!currentLyricsRef_) return;
+    const overlay = document.getElementById('lyricsModalOverlay');
+    const content = document.getElementById('lyricsModalContent');
+    content.textContent = 'Loading lyrics...';
+    overlay.style.display = 'flex';
+
+    if (currentLyricsRef_.type === 'file') {
+      const reader = new FileReader();
+      reader.onload = () => { content.textContent = reader.result; };
+      reader.onerror = () => { content.textContent = 'Could not read lyrics file "' + currentLyricsRaw_ + '".'; };
+      reader.readAsText(currentLyricsRef_.file);
+    } else if (currentLyricsRef_.type === 'url') {
+      fetch(currentLyricsRef_.value)
+        .then(res => { if (!res.ok) throw new Error('HTTP ' + res.status); return res.text(); })
+        .then(text => { content.textContent = text; })
+        .catch(() => { content.textContent = 'Could not load lyrics from "' + currentLyricsRaw_ + '".'; });
+    } else {
+      content.textContent = 'Lyrics not available.';
+    }
+  }
+
+  function closeLyricsModal() {
+    document.getElementById('lyricsModalOverlay').style.display = 'none';
+  }
+
+  // ---------- Answer popup ----------
+  document.getElementById('answerBtn').addEventListener('click', openAnswerModal);
+  document.getElementById('answerModalCloseBtn').addEventListener('click', closeAnswerModal);
+  document.getElementById('answerModalOverlay').addEventListener('click', e => {
+    if (e.target.id === 'answerModalOverlay') closeAnswerModal();
+  });
+
+  function openAnswerModal() {
+    if (!String(currentAnswer_).trim()) return;
+    const overlay = document.getElementById('answerModalOverlay');
+    const content = document.getElementById('answerModalContent');
+    content.textContent = currentAnswer_;
+    overlay.style.display = 'flex';
+  }
+
+  function closeAnswerModal() {
+    document.getElementById('answerModalOverlay').style.display = 'none';
+  }
+
+  function startTimer() {
+    clearInterval(timerInterval);
+    stopBonusTimer();
+    const timerEl = document.getElementById('timer');
+    const timerTopEl = document.getElementById('timerTop');
+    timerEl.classList.remove('warning', 'expired');
+    timerTopEl.classList.remove('warning', 'expired');
+
+    seconds = countdownTarget;
+    updateTimerDisplay(seconds);
+    timerInterval = setInterval(() => {
+      seconds--;
+      updateTimerDisplay(seconds);
+      if (seconds <= 5 && seconds > 0) {
+        timerEl.classList.add('warning');
+        timerTopEl.classList.add('warning');
+      }
+      if (seconds <= 0) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+        timerEl.classList.add('expired');
+        timerTopEl.classList.add('expired');
+        document.getElementById('stopBtn').disabled = true;
+        startBonusTimer();
+      }
+    }, 1000);
+    document.getElementById('stopBtn').disabled = false;
+  }
+
+  function stopEverything() {
+    const wasRunning = !!timerInterval;
+    clearInterval(timerInterval);
+    timerInterval = null;
+    document.getElementById('audioPlayer').pause();
+    document.getElementById('videoPlayer').pause();
+    document.getElementById('stopBtn').disabled = true;
+    if (wasRunning) startBonusTimer();
+  }
+
+  // ---------- Bonus timer ----------
+  let bonusInterval = null;
+
+  function startBonusTimer() {
+    clearInterval(bonusInterval);
+    const bonusEl = document.getElementById('timerBonus');
+    bonusEl.classList.remove('expired');
+    bonusEl.classList.add('running');
+
+    let bonusSeconds = 5;
+    updateBonusDisplay(bonusSeconds);
+    bonusInterval = setInterval(() => {
+      bonusSeconds--;
+      updateBonusDisplay(bonusSeconds);
+      if (bonusSeconds <= 0) {
+        clearInterval(bonusInterval);
+        bonusEl.classList.remove('running');
+        bonusEl.classList.add('expired');
+      }
+    }, 1000);
+  }
+
+  function stopBonusTimer() {
+    clearInterval(bonusInterval);
+    const bonusEl = document.getElementById('timerBonus');
+    bonusEl.classList.remove('running', 'expired');
+    updateBonusDisplay(0);
+  }
+
+  function updateBonusDisplay(sec) {
+    document.getElementById('timerBonus').textContent = String(Math.max(sec, 0));
+  }
+
+  function updateTimerDisplay(sec) {
+    const text = String(Math.max(sec, 0));
+    document.getElementById('timer').textContent = text;
+    document.getElementById('timerTop').textContent = text;
+  }
+</script>
+<script>
+/* ===== Cast bridge (added) ===== */
+/* cast-bridge.js — drop-in for Antakshari_Offline_v6_8 (no game logic changed).
+ * Watches the game's DOM, builds a full-state snapshot, and hands it to the
+ * iPhone app (WKWebView message handler "castBridge"), which forwards it to the TV.
+ * Native app calls: CastBridge.setCasting(true|false) and CastBridge.resend().
+ */
+(function () {
+  'use strict';
+  var CFG = {
+    SEND_STATUS_TO_TV: false, // #status can contain the song title/answer; keep false
+    DEBOUNCE_MS: 60,
+    HEARTBEAT_MS: 10000       // resend full state so the TV self-heals after a dropped message
+  };
+  var casting = false, last = '', timer = null, mediaSeq = 0, started = false;
+
+  function $(id) { return document.getElementById(id); }
+  function txt(id) { var e = $(id); return e ? e.textContent : ''; }
+  function inlineOpen(id) { var e = $(id); return !!e && e.style.display === 'flex'; }
+  function visible(id) { var e = $(id); return !!e && getComputedStyle(e).display !== 'none'; }
+  function flags(id) {
+    var e = $(id); if (!e) return '';
+    return ['warning', 'expired', 'running'].filter(function (c) { return e.classList.contains(c); }).join(' ');
+  }
+
+  function teams() {
+    var out = [], bar = $('topScoreBar');
+    if (!bar) return out;
+    Array.prototype.forEach.call(bar.querySelectorAll('.chip'), function (chip) {
+      var s = chip.children;
+      out.push({ name: s[0] ? s[0].textContent : '', score: s[1] ? s[1].textContent : '' });
+    });
+    return out;
+  }
+
+  function media() {
+    var a = $('audioPlayer'), v = $('videoPlayer'), i = $('imagePlayer'), el = null, kind = null;
+    if (v && v.style.display === 'block') { el = v; kind = 'video'; }
+    else if (i && i.style.display === 'block') { el = i; kind = 'image'; }
+    else if (a && a.style.display === 'block') { el = a; kind = 'audio'; }
+    if (!el) return { kind: null, src: '', local: false, playing: false, seq: mediaSeq };
+    var src = el.currentSrc || el.src || '';
+    var local = /^(blob:|file:|data:)/i.test(src);
+    return {
+      kind: kind, src: local ? '' : src, local: local, seq: mediaSeq,
+      playing: kind !== 'image' && !el.paused && !el.ended
+    };
+  }
+
+  function points() {
+    var rows = [], list = $('pointsModalList');
+    if (!list) return rows;
+    Array.prototype.forEach.call(list.children, function (r) {
+      rows.push({
+        name: r.children[0] ? r.children[0].textContent : '',
+        delta: r.children[1] ? r.children[1].textContent : '',
+        color: r.children[1] ? r.children[1].style.color : ''
+      });
+    });
+    return rows;
+  }
+
+  function snapshot() {
+    var g = $('gameWrap');
+    started = !!g && g.style.display === 'flex';
+    return {
+      v: 1,
+      started: started,
+      tab: inlineOpen('newRoundContent') ? 'word' : 'song',
+      clocks: {
+        main:  { text: txt('timerTop'),       cls: flags('timerTop'),       show: visible('timerTop') },
+        bonus: { text: txt('timerBonus'),     cls: flags('timerBonus'),     show: visible('timerBonus') },
+        word:  { text: txt('timerWordTimer'), cls: flags('timerWordTimer'), show: visible('timerWordTimer') },
+        tally: { text: txt('timerWordTally'), cls: '',                      show: visible('timerWordTally') }
+      },
+      teams: teams(),
+      status: CFG.SEND_STATUS_TO_TV ? txt('status') : '',
+      media: media(),
+      modal: {
+        lyrics: { open: inlineOpen('lyricsModalOverlay'), title: txt('lyricsModalTitle'), text: txt('lyricsModalContent') },
+        answer: { open: inlineOpen('answerModalOverlay'), title: txt('answerModalTitle'), text: txt('answerModalContent') },
+        word:   { open: inlineOpen('wordModalOverlay'), word: txt('wordModalContent'), sub: txt('wordModalSubtext') },
+        points: { open: inlineOpen('pointsModalOverlay'), rows: points() }
+      }
+    };
+  }
+
+  function transport(json) {
+    try {
+      var h = window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.castBridge;
+      if (h) { h.postMessage(json); return true; }
+    } catch (e) {}
+    return false;
+  }
+
+  function banner(msg, bad) {
+    var b = $('castBanner');
+    if (!b) {
+      b = document.createElement('div'); b.id = 'castBanner';
+      b.style.cssText = 'position:fixed;left:50%;bottom:10px;transform:translateX(-50%);z-index:9999;' +
+        'padding:8px 16px;border-radius:20px;font:600 14px -apple-system,sans-serif;color:#fff;max-width:92vw;text-align:center;';
+      document.body.appendChild(b);
+    }
+    b.style.background = bad ? '#c0392b' : '#27ae60';
+    b.textContent = msg; b.style.display = msg ? 'block' : 'none';
+  }
+
+  function flush(force) {
+    var s = snapshot(), j = JSON.stringify(s);
+    if (casting) {
+      if (s.media.local) banner('⚠ This song is a local file. The TV can\u2019t play it. Use https:// links in the CSV.', true);
+      else banner('📺 Casting to TV', false);
+    } else banner('', false);
+    if (!force && j === last) return;
+    last = j; transport(j);
+  }
+  function schedule() {
+    if (timer) return;
+    timer = setTimeout(function () { timer = null; flush(false); }, CFG.DEBOUNCE_MS);
+  }
+
+  function muteLocal(el) { if (casting && el && !el.muted) el.muted = true; }
+
+  function init() {
+    var mo = new MutationObserver(schedule);
+    var deep = { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['style', 'class', 'src'] };
+    ['timerTopWrap', 'topScoreBar', 'mediaPanel', 'songRoundContent', 'newRoundContent',
+     'lyricsModalOverlay', 'answerModalOverlay', 'wordModalOverlay', 'pointsModalOverlay'].forEach(function (id) {
+      var e = $(id); if (e) mo.observe(e, deep);
+    });
+    var gw = $('gameWrap'); if (gw) mo.observe(gw, { attributes: true, attributeFilter: ['style'] });
+
+    ['audioPlayer', 'videoPlayer'].forEach(function (id) {
+      var el = $(id); if (!el) return;
+      ['play', 'pause', 'ended', 'emptied', 'loadstart', 'volumechange'].forEach(function (ev) {
+        el.addEventListener(ev, function () {
+          if (ev === 'loadstart') mediaSeq++;
+          muteLocal(el);
+          schedule();
+        });
+      });
+    });
+
+    // The offline game requires a media folder; iOS can't pick folders and the TV needs https links anyway.
+    var fs = $('folderStatus');
+    if (fs && fs.parentNode && !$('castSkipFolder')) {
+      var btn = document.createElement('button');
+      btn.id = 'castSkipFolder'; btn.type = 'button';
+      btn.textContent = 'My CSV uses https:// links — skip folder';
+      btn.style.cssText = 'margin-top:10px;padding:10px 14px;border:none;border-radius:8px;font-weight:600;cursor:pointer;background:#34495e;color:#f4f4f4;';
+      btn.addEventListener('click', function () {
+        try {
+          fileMap = {}; folderLoaded = true;           // globals declared by the game's own script
+          fs.className = 'statusLine ok';
+          fs.textContent = '✔ Using https:// media links (no folder).';
+          refreshStartButton();
+        } catch (e) { fs.textContent = 'Could not skip folder: ' + e.message; }
+      });
+      fs.parentNode.insertBefore(btn, fs);
+    }
+    setInterval(function () { flush(true); }, CFG.HEARTBEAT_MS);
+    flush(true);
+  }
+
+  window.CastBridge = {
+    snapshot: snapshot,
+    resend: function () { flush(true); },
+    setCasting: function (on) {
+      casting = !!on;
+      ['audioPlayer', 'videoPlayer'].forEach(function (id) {
+        var el = $(id); if (!el) return;
+        if (casting) el.muted = true; else el.muted = false;
+      });
+      flush(true);
+    }
+  };
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
+})();
+
+</script>
+</body>
+</html>
