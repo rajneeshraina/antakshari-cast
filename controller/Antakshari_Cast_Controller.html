@@ -1802,6 +1802,181 @@
   }
 </script>
 <script>
+/* ===== Online sources (added) ===== */
+/* online-sources.js — adds "Online sources (GitHub)" to the game's setup screen.
+ *  - Auto-loads a default song CSV from a web address (e.g. GitHub) on launch.
+ *  - Resolves plain file names in the CSV (MP3Link / LyricsLink) against a default media location.
+ *  - Both addresses can be changed inside the app and are remembered between launches.
+ * The game's own code is not modified; this file only adds to it.
+ */
+(function () {
+  'use strict';
+
+  // ===== EDIT THESE DEFAULTS =====================================================
+  // First-launch values. You can also change them any time inside the app.
+  var DEFAULTS = {
+    csvUrl:    'https://raw.githubusercontent.com/YOUR-USER/YOUR-REPO/main/songs.csv',
+    mediaBase: 'https://YOUR-USER.github.io/YOUR-REPO/media/'
+  };
+  // ================================================================================
+
+  var KEY = 'antakshariSettings';
+  var settings, autoFolder = false;
+
+  function $(id) { return document.getElementById(id); }
+  function isSet(u) { return !!u && /^https?:\/\//i.test(String(u).trim()) && String(u).indexOf('YOUR-') === -1; }
+
+  // github.com/user/repo/blob/main/songs.csv  ->  raw.githubusercontent.com/user/repo/main/songs.csv
+  function normalizeUrl(u) {
+    u = String(u || '').trim();
+    var m = u.match(/^https?:\/\/github\.com\/([^\/]+)\/([^\/]+)\/(?:blob|raw)\/(.+)$/i);
+    return m ? 'https://raw.githubusercontent.com/' + m[1] + '/' + m[2] + '/' + m[3] : u;
+  }
+  function withSlash(u) { u = String(u || '').trim(); return u && u.charAt(u.length - 1) !== '/' ? u + '/' : u; }
+
+  function readSettings() {
+    var s = {};
+    try {
+      var raw = window.__nativeSettingsRaw || localStorage.getItem(KEY);
+      if (raw) s = JSON.parse(raw) || {};
+    } catch (e) {}
+    return {
+      csvUrl: s.csvUrl != null ? s.csvUrl : DEFAULTS.csvUrl,
+      mediaBase: s.mediaBase != null ? s.mediaBase : DEFAULTS.mediaBase
+    };
+  }
+  function saveSettings() {
+    var json = JSON.stringify(settings);
+    try {
+      var h = window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.castSettings;
+      if (h) h.postMessage(json);
+    } catch (e) {}
+    try { localStorage.setItem(KEY, json); } catch (e) {}
+  }
+
+  // ---- Media location: plain file names in the CSV are looked up under the media base address ----
+  var origFind = window.findLocalFile_;
+  window.findLocalFile_ = function (ref) {
+    var r = origFind ? origFind(ref) : null;       // full https:// links, or a folder picked by hand
+    if (r) return r;
+    if (!ref || !isSet(settings.mediaBase)) return null;
+    var rel = String(ref).trim().replace(/\\/g, '/').replace(/^\.?\//, '');
+    if (!rel) return null;
+    var enc = rel.split('/').map(function (p) { return encodeURIComponent(decodeURIComponent(p)); }).join('/');
+    return { type: 'url', value: withSlash(settings.mediaBase) + enc };
+  };
+
+  function applyMediaBase() {
+    var fs = $('folderStatus');
+    if (isSet(settings.mediaBase)) {
+      try { folderLoaded = true; autoFolder = true; } catch (e) {}
+      if (fs) { fs.className = 'statusLine ok'; fs.textContent = '✔ Using online media: ' + withSlash(settings.mediaBase); }
+    } else if (autoFolder) {
+      try { if (!window.fileMap || Object.keys(fileMap).length === 0) folderLoaded = false; } catch (e) {}
+      autoFolder = false;
+      if (fs) { fs.className = 'statusLine'; fs.textContent = ''; }
+    }
+    try { refreshStartButton(); } catch (e) {}
+  }
+
+  // ---- CSV: same effect as choosing the file by hand ----
+  function applyCsv(text, label) {
+    var st = $('csvStatus');
+    try {
+      var result = parseSongsCSV(String(text).replace(/^\uFEFF/, ''));
+      songs = result.songs; allWords = result.words; wordsRemaining = shuffleArray_(allWords);
+      var cats = {}; songs.forEach(function (s) { cats[String(s.Category).trim()] = 1; });
+      var nCats = Object.keys(cats).length;
+      songsLoaded = songs.length > 0;
+      var msg = songs.length > 0
+        ? '✔ Loaded ' + songs.length + ' songs across ' + nCats + ' categor' + (nCats === 1 ? 'y' : 'ies') + '.'
+        : '✔ Loaded ' + allWords.length + ' words. No song rows found.';
+      if (songs.length > 0 && allWords.length > 0) msg += ' Also ' + allWords.length + ' words for the Word Round.';
+      st.className = 'statusLine ok'; st.textContent = msg + ' ' + label;
+    } catch (err) {
+      songsLoaded = false; songs = []; allWords = []; wordsRemaining = [];
+      st.className = 'statusLine err'; st.textContent = '✘ ' + err.message;
+    }
+    try { updateWordRoundLabels_(); refreshStartButton(); } catch (e) {}
+  }
+
+  function loadCsv(manual) {
+    var st = $('csvStatus'), url = normalizeUrl(settings.csvUrl);
+    if (!isSet(url)) {
+      if (manual) { st.className = 'statusLine err'; st.textContent = '✘ Enter the CSV address (https://…) first, or choose a file below.'; }
+      return Promise.resolve(false);
+    }
+    st.className = 'statusLine'; st.textContent = '⏳ Loading song list from the web…';
+    var bust = url + (url.indexOf('?') > -1 ? '&' : '?') + '_=' + Date.now();   // skip stale caches
+    return fetch(bust, { cache: 'no-store' })
+      .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.text(); })
+      .then(function (text) { applyCsv(text, '(online, ' + new Date().toLocaleTimeString() + ')'); return true; })
+      .catch(function (err) {
+        st.className = 'statusLine err';
+        st.textContent = '✘ Could not load the CSV (' + err.message + '). Check the address, or choose a file below.';
+        return false;
+      });
+  }
+
+  // ---- UI card ----
+  function buildCard() {
+    var setup = $('setupWrap'); if (!setup || $('onlineCard')) return;
+    var card = document.createElement('div'); card.className = 'card'; card.id = 'onlineCard';
+    var field = 'width:100%;box-sizing:border-box;padding:12px;border-radius:8px;border:1px solid #34495e;background:#0f1720;color:#f4f4f4;font-size:15px;margin:4px 0 12px;';
+    var btn = 'padding:10px 14px;border:none;border-radius:8px;font-weight:600;cursor:pointer;color:#f4f4f4;margin-right:8px;';
+    card.innerHTML =
+      '<h2>📡 Online sources (GitHub)</h2>' +
+      '<p class="help">Your song list and media load automatically from these addresses, so you only edit them on GitHub. ' +
+      'Plain file names in the CSV are looked up under the media address. Full <code>https://</code> links in the CSV are used as they are. ' +
+      'After you change the CSV on GitHub, wait a few minutes and tap <b>Reload CSV</b>.</p>' +
+      '<label for="onlineCsvUrl">Song list CSV address</label>' +
+      '<input id="onlineCsvUrl" type="url" inputmode="url" autocapitalize="off" autocorrect="off" spellcheck="false" style="' + field + '">' +
+      '<label for="onlineMediaBase">Media location (folder address)</label>' +
+      '<input id="onlineMediaBase" type="url" inputmode="url" autocapitalize="off" autocorrect="off" spellcheck="false" style="' + field + '">' +
+      '<button type="button" id="onlineSaveBtn" style="' + btn + 'background:#27ae60;">Save &amp; load</button>' +
+      '<button type="button" id="onlineReloadBtn" style="' + btn + 'background:#34495e;">Reload CSV</button>' +
+      '<button type="button" id="onlineResetBtn" style="' + btn + 'background:#7f8c8d;">Reset to defaults</button>' +
+      '<div class="statusLine" id="onlineStatus"></div>' +
+      '<p class="help" style="margin-top:10px">Or pick a CSV file by hand in the steps below.</p>';
+    setup.insertBefore(card, setup.firstChild);
+  }
+
+  function readFields() {
+    settings.csvUrl = $('onlineCsvUrl').value.trim();
+    settings.mediaBase = $('onlineMediaBase').value.trim();
+  }
+  function setStatus(msg, cls) { var s = $('onlineStatus'); s.className = 'statusLine ' + (cls || ''); s.textContent = msg; }
+
+  function init() {
+    settings = readSettings();
+    buildCard();
+    $('onlineCsvUrl').value = settings.csvUrl;
+    $('onlineMediaBase').value = settings.mediaBase;
+
+    $('onlineSaveBtn').addEventListener('click', function () {
+      readFields(); saveSettings(); applyMediaBase();
+      if (/^https?:\/\/github\.com\//i.test(settings.mediaBase) && !/raw\.githubusercontent/i.test(settings.mediaBase))
+        setStatus('Tip: for media, use your GitHub Pages address (https://USER.github.io/REPO/media/), not the github.com page.', 'err');
+      else setStatus('Saved.', 'ok');
+      loadCsv(true);
+    });
+    $('onlineReloadBtn').addEventListener('click', function () { readFields(); loadCsv(true); });
+    $('onlineResetBtn').addEventListener('click', function () {
+      settings = { csvUrl: DEFAULTS.csvUrl, mediaBase: DEFAULTS.mediaBase };
+      $('onlineCsvUrl').value = settings.csvUrl; $('onlineMediaBase').value = settings.mediaBase;
+      saveSettings(); applyMediaBase(); setStatus('Back to the built-in defaults.', 'ok'); loadCsv(false);
+    });
+
+    applyMediaBase();
+    loadCsv(false);     // automatic load on launch
+  }
+
+  window.OnlineSources = { reload: function () { return loadCsv(true); }, normalizeUrl: normalizeUrl, getSettings: function () { return settings; } };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
+})();
+
+</script>
+<script>
 /* ===== Cast bridge (added) ===== */
 /* cast-bridge.js — drop-in for Antakshari_Offline_v6_8 (no game logic changed).
  * Watches the game's DOM, builds a full-state snapshot, and hands it to the
