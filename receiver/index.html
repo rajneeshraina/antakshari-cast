@@ -45,7 +45,11 @@
   #wordText { font-size: 16vh; font-weight: 800; line-height: 1.15; word-break: break-word; }
   #wordSub { margin-top: 3vh; font-size: 3vh; opacity: .6; }
   #pointsBox { max-width: 60vw; align-items: center; gap: 3vh; }
-  .prow { text-align: center; } .pname { font-size: 5vh; font-weight: 700; } .pdelta { font-size: 9vh; font-weight: 800; margin-top: .6vh; }
+  #pList { display: flex; flex-wrap: wrap; justify-content: center; gap: 4vh 5vw; }
+  .prow { text-align: center; } .pname { font-size: 5.5vh; font-weight: 700; } .pdelta { font-size: 11vh; font-weight: 800; margin-top: .6vh; }
+  #anBody { text-align: center; font-size: 8vh; font-weight: 800; line-height: 1.25; }
+  .overlay.open .box { animation: pop .35s ease-out; }
+  @keyframes pop { from { transform: scale(.85); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 </style>
 </head>
 <body>
@@ -70,9 +74,9 @@
 </div>
 
 <div class="overlay" id="oLyrics"><div class="box"><h2 id="lyTitle">Lyrics</h2><div class="body" id="lyBody"></div></div></div>
-<div class="overlay" id="oAnswer"><div class="box"><h2 id="anTitle">Answer</h2><div class="body" id="anBody"></div></div></div>
+<div class="overlay" id="oAnswer"><div class="box"><h2 id="anTitle">✅ Answer</h2><div class="body" id="anBody"></div></div></div>
 <div class="overlay" id="oWord"><div class="box" id="wordBox"><div id="wordText"></div><div id="wordSub"></div></div></div>
-<div class="overlay" id="oPoints"><div class="box" id="pointsBox"><h2>Points</h2><div id="pList"></div></div></div>
+<div class="overlay" id="oPoints"><div class="box" id="pointsBox"><h2>Points added</h2><div id="pList"></div></div></div>
 
 <audio id="aud"></audio>
 <script src="https://www.gstatic.com/cast/sdk/libs/caf_receiver/v3/cast_receiver_framework.js"></script>
@@ -138,14 +142,14 @@
 
     var m = s.modal;
     $('lyTitle').textContent = m.lyrics.title || 'Lyrics'; $('lyBody').textContent = m.lyrics.text; overlay('oLyrics', m.lyrics.open);
-    $('anTitle').textContent = m.answer.title || 'Answer'; $('anBody').textContent = m.answer.text; overlay('oAnswer', m.answer.open);
+    $('anTitle').textContent = '✅ ' + (m.answer.title || 'Answer'); $('anBody').textContent = m.answer.text; overlay('oAnswer', m.answer.open);
     $('wordText').textContent = m.word.word; $('wordSub').textContent = m.word.sub; overlay('oWord', m.word.open);
 
     var pl = $('pList'); pl.textContent = '';
     m.points.rows.forEach(function (r) {
       var row = document.createElement('div'); row.className = 'prow';
       var a = document.createElement('div'); a.className = 'pname'; a.textContent = r.name;
-      var b = document.createElement('div'); b.className = 'pdelta'; b.textContent = r.delta; if (r.color) b.style.color = r.color;
+      var b = document.createElement('div'); b.className = 'pdelta'; b.textContent = r.delta; b.style.color = r.color || (/^-/.test(r.delta) ? '#e74c3c' : '#2ecc71');
       row.appendChild(a); row.appendChild(b); pl.appendChild(row);
     });
     overlay('oPoints', m.points.open);
